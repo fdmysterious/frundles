@@ -5,9 +5,20 @@
 - August 2024
 """
 
-from .model import LibraryIdentifier
+from typing import Dict
 
 
-class UnlockedRefSpec:
-    def __init__(self, library: LibraryIdentifier):
-        super().__init__(self, f"Unlocked library: {library.identifier}")
+class UnlockedRefSpec(Exception):
+    def __init__(self, library):
+        super().__init__(f"Unlocked library: {library.identifier}")
+
+
+class MultipleRefSpec(Exception):
+    def __init__(self, libname: str, defs: Dict[str, str]):
+        deflist = map(
+            lambda x: f"{x[0]}={x[1]}", filter(lambda x: x[1] is not None, defs.items())
+        )
+
+        super().__init__(
+            f"Multiple refspecs for library {libname}: {', '.join(deflist)}"
+        )

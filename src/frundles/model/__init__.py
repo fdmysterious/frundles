@@ -8,6 +8,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Set
+from pathlib import Path
 
 from ..errors import UnlockedRefSpec
 
@@ -104,3 +105,13 @@ class Library:
 
     def __hash__(self):
         return self.identifier.__hash__()
+
+
+###########################################
+# Workspace related information
+###########################################
+
+
+@dataclass
+class WorkspaceInfo:
+    catalog_dir: Path

@@ -31,7 +31,10 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-dependencies = []
+dependencies = [
+	"pyyaml",
+	"furl"
+]
 
 
 # TODO #
@@ -78,7 +81,8 @@ exclude_lines = [
 
 [tool.hatch.envs.default]
 
-dependencies = []
+dependencies = [
+]
 
 
 ## ---------------------------- Type-checking environment
