@@ -1,0 +1,128 @@
+[build-system]
+requires        = ["hatchling"]
+build-backend   = "hatchling.build"
+
+
+##################################################
+# Generic project information
+##################################################
+
+[project]
+name            = "frundles"
+dynamic         = ["version"]
+description     = 'IP catalog manager'
+readme          = "README.md"
+requires-python = ">=3.8"
+license         = "BSD-2-Clause"
+keywords        = []
+
+authors = [
+  { name = "Florian Dupeyron", email = "florian.dupeyron@mugcat.fr" },
+]
+
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+dependencies = []
+
+
+# TODO #
+#[project.urls]
+#Documentation = "https://XXXX"
+#Issues        = "https://XXXX"
+#Source        = "https://XXXX"
+
+[tool.hatch.version]
+path = "src/frundles/__about__.py"
+
+
+##################################################
+# Tools configuration
+##################################################
+
+## ---------------------------- Coverage
+
+[tool.coverage.run]
+source_pkgs = ["frundles", "tests"]
+branch      = true
+parallel    = true
+omit        = [
+	"src/frundles/__about__.py"
+]
+
+[tool.coverage.paths]
+frundles = ["src/frundles", "*/frundles/src/frundles"]
+tests                         = ["tests", "*/test-template/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+
+##################################################
+# Environments configuration
+##################################################
+
+## ---------------------------- Default environment
+
+[tool.hatch.envs.default]
+
+dependencies = []
+
+
+## ---------------------------- Type-checking environment
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/frundles tests}"
+
+
+## ---------------------------- Documentation generation environment
+
+[tool.hatch.envs.docs]
+dependencies = [
+	"mkdocs",
+	"mkdocs-material",
+	"mkdocs-roamlinks-plugin",
+	"mkdocstrings",
+	"mkdocstrings[python]",
+	"mkdocs-gen-files",
+	"mkdocs-literate-nav"
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build"
+
+
+## ---------------------------- Linting environment
+
+[tool.hatch.envs.lint]
+
+dependencies = [
+	"ruff",
+	"black",
+]
+
+
+[tool.hatch.envs.lint.scripts]
+
+code-rules       = "ruff check src"
+code-format      = "black src"
+
+# Linting report using SARIF format for automation
+code-rules-sarif = "ruff check src --output-format sarif -o .lint.sarif"
