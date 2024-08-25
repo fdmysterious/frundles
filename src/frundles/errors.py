@@ -33,3 +33,20 @@ class WorkspaceNotFound(Exception):
         super().__init__(
             f"No workspace found starting from {start_path}. Recursive search was {'on' if recursive else 'off'}"
         )
+
+
+class CatalogNotADirError(Exception):
+    def __init__(self, catalog_dir: Path):
+        super().__init__(f"{catalog_dir} exists, but is not a directory")
+
+
+class CatalogWriteAccessError(Exception):
+    def __init__(self, catalog_dir: Path):
+        super().__init__(f"{catalog_dir} is not writeable for the current user")
+
+
+class LockFileSyntaxError(Exception):
+    def __init__(self, lineno, linecontent: str, error_explanation: str):
+        super().__init__(
+            f"Invalid lockfile syntax on line {lineno} for line '{linecontent}': {error_explanation}"
+        )
