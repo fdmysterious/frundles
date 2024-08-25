@@ -91,6 +91,7 @@ def load_workspace(path: Path):
 
         return lib
 
+    locked_libs = None
     if lockfile.is_file():
         log.info(f"Found lockfile for workspace {path} at {lockfile}")
         locked_libs = lock_file.from_file(lockfile)
@@ -99,7 +100,7 @@ def load_workspace(path: Path):
 
         libraries = [resolve_func(lib) for lib in libraries]
 
-    return wsinfo, libraries
+    return wsinfo, libraries, locked_libs
 
 
 def sync_workspace(path: Path):
@@ -112,7 +113,8 @@ def sync_workspace(path: Path):
     log.info(f"Syncing workspace located at {path}")
 
     # Load workspace information
-    wsinfo, libraries = load_workspace(path)
+    wsinfo, libraries, resolved_refspecs = load_workspace(path)
+    resolved_refspecs = resolved_refspecs or dict()
 
     # Ensure catalog dir status
     log.debug(f"Ensure catalog dir status for {wsinfo.catalog_dir}")
@@ -126,8 +128,9 @@ def sync_workspace(path: Path):
         resolved_refspecs: Dict[LibraryIdentifier, RefSpec] = None,
         synced_libraries: FrozenSet[LibraryIdentifier] = frozenset(),
     ):
-        # resolved_refspecs = dict(**(resolved_refspecs or dict()))
-        resolved_refspecs = dict(resolved_refspecs or dict())
+        resolved_refspecs = dict(
+            resolved_refspecs or dict()
+        )  # Create a copy to avoid side effect if modified unintentionally
 
         new_synced_libraries = set()
         new_resolved_refspecs = dict()
@@ -202,18 +205,20 @@ def sync_workspace(path: Path):
                     lib_folder = catalog.get_lib_path(catalog_dir, lib.identifier)
                     if is_workspace(lib_folder):
                         log.info(
-                            f"-- '{lib_folder}' contains frundles data, process it recursively"
+                            f"'{lib_folder}' contains frundles data, process it recursively"
                         )
 
-                        lib_wsinfo, lib_ws_libraries = load_workspace(lib_folder)
+                        lib_wsinfo, lib_ws_libraries, _ = load_workspace(lib_folder)
 
                         lib_new_synced_libraries, lib_new_resolved_refspecs = (
                             fetch_libraries(
                                 catalog_dir=catalog_dir,
                                 lockfile_path=lockfile_path,
                                 libraries=lib_ws_libraries,
-                                resolved_refspecs=new_resolved_refspecs,
-                                synced_libraries=new_synced_libraries,
+                                resolved_refspecs=resolved_refspecs
+                                | new_resolved_refspecs,
+                                synced_libraries=synced_libraries
+                                | new_synced_libraries,
                             )
                         )
 
@@ -235,4 +240,5 @@ def sync_workspace(path: Path):
         wsinfo.catalog_dir,
         path / "frundles.lock",  # FIXME # Refactor in function
         libraries=libraries,
+        resolved_refspecs=resolved_refspecs,
     )
