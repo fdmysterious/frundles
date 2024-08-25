@@ -6,9 +6,12 @@
 """
 
 import logging
+import tempfile
 
-from ..model import WorkspaceInfo, LibraryIdentifier, LibraryStatus
+from ..model import LibraryIdentifier, LibraryStatus, Library
 from git import Repo, InvalidGitRepositoryError
+from pathlib import Path
+
 
 log = logging.getLogger("backend.library")
 
@@ -29,13 +32,32 @@ def _is_workspace_dirty(repo: Repo):
     return repo.index.diff(None) or repo.untracked_files
 
 
+def _get_commit_sha1(lib: Library):
+    """Get the associated commit SHA1 for a given repository"""
+
+    repo_url = lib.origin
+    ref_name = lib.refspec.value
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"Fetch to {tmpdir}")
+
+        repo = Repo.init(tmpdir)
+        origin = repo.create_remote("origin", url=repo_url)
+
+        origin.fetch()
+
+        commit_sha1 = repo.git.rev_parse(f"origin/{ref_name}")
+
+        return commit_sha1
+
+
 ###########################################
 # Library status management
 ###########################################
 
 
-def check_status(wsinfo: WorkspaceInfo, lib_id: LibraryIdentifier):
-    folder_path = wsinfo.catalog_dir / lib_id.locked_identifier_path
+def check_status(catalog_dir: Path, lib_id: LibraryIdentifier):
+    folder_path = catalog_dir / lib_id.locked_identifier_path
 
     # Step 1: Checked that folder exists
     if not folder_path.exists():
