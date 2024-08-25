@@ -10,7 +10,7 @@ import logging
 
 from pathlib import Path
 
-from ..model import WorkspaceInfo
+from ..model import WorkspaceInfo, LibraryIdentifier
 from ..errors import CatalogNotADirError, CatalogWriteAccessError
 
 
@@ -20,6 +20,10 @@ log = logging.getLogger("backend.catalog")
 ###########################################
 # Catalog directory management
 ###########################################
+
+
+def get_lib_path(catalog_dir: Path, lib_id: LibraryIdentifier):
+    return catalog_dir / lib_id.locked_identifier_path
 
 
 def ensure_catalog_dir(wspace: WorkspaceInfo):

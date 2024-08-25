@@ -12,6 +12,8 @@ from ..model import LibraryIdentifier, LibraryStatus, Library
 from git import Repo, InvalidGitRepositoryError
 from pathlib import Path
 
+from . import catalog
+
 
 log = logging.getLogger("backend.library")
 
@@ -36,7 +38,7 @@ def _get_commit_sha1(lib: Library):
     """Get the associated commit SHA1 for a given repository"""
 
     repo_url = lib.origin
-    ref_name = lib.refspec.value
+    ref_name = lib.identifier.refspec.value
 
     with tempfile.TemporaryDirectory() as tmpdir:
         print(f"Fetch to {tmpdir}")
@@ -57,7 +59,7 @@ def _get_commit_sha1(lib: Library):
 
 
 def check_status(catalog_dir: Path, lib_id: LibraryIdentifier):
-    folder_path = catalog_dir / lib_id.locked_identifier_path
+    folder_path = catalog.get_lib_path(catalog_dir, lib_id)
 
     # Step 1: Checked that folder exists
     if not folder_path.exists():
@@ -85,3 +87,21 @@ def check_status(catalog_dir: Path, lib_id: LibraryIdentifier):
     # Directory is not a valid git repository
     except InvalidGitRepositoryError:
         return LibraryStatus.Invalid
+
+
+###########################################
+# Library status management
+###########################################
+
+
+def clone(catalog_dir: Path, lib: Library):
+    target_dir = catalog.get_lib_path(catalog_dir, lib.identifier)
+
+    log.info(f"Clone library {lib.identifier.identifier} to {target_dir}")
+
+    repo = Repo.init(target_dir)
+    origin = repo.create_remote("origin", url=lib.origin)
+
+    origin.fetch()
+
+    repo.git.checkout(lib.identifier.locked_refspec.value)

@@ -116,6 +116,14 @@ class LibraryIdentifier:
             name=self.name, refspec=self.refspec, locked_refspec=locked_refspec
         )
 
+    def unlock(self):
+        return LibraryIdentifier(
+            name=self.name, refspec=self.refspec, locked_refspec=None
+        )
+
+    def is_locked(self):
+        return self.locked_refspec is not None
+
     def __hash__(self):
         if self.locked_refspec:
             return hash(self.locked_identifier)

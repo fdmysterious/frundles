@@ -7,7 +7,7 @@
 
 import re
 from pathlib import Path
-from typing import Dict
+from typing import Dict, FrozenSet
 
 from ..errors import LockFileSyntaxError
 from ..model import LibraryIdentifier, RefSpec, RefSpecKind
@@ -77,3 +77,24 @@ def from_file(path: Path) -> Dict[LibraryIdentifier, LibraryIdentifier]:
             libs[unlocked_lib_id] = locked_refspec
 
     return libs
+
+
+def to_file(path: Path, libs: FrozenSet[LibraryIdentifier]):
+    with open(path, "w") as fhandle:
+        for lib_id in libs:
+            print(
+                f"{lib_id.name}:{lib_id.refspec.kind.value}:{lib_id.refspec.value}:{lib_id.locked_refspec.value}",
+                file=fhandle,
+            )
+
+
+def add_to_lock_file(path: Path, lib_id: LibraryIdentifier):
+    try:
+        locked_libs = {k.lock(v) for k, v in from_file(path).items()}
+
+    except FileNotFoundError:
+        locked_libs = set()
+
+    locked_libs.add(lib_id)
+
+    to_file(path, locked_libs)
