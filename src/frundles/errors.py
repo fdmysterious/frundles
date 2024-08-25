@@ -5,11 +5,15 @@
 - August 2024
 """
 
+from pathlib import Path
 from typing import Dict
 
 
 class UnlockedRefSpec(Exception):
     def __init__(self, library):
+        # NOTE # Precising library type as "LibraryIdentifier" (using the quotes for deferred reference)
+        # breaks ruff type checking stuff. See https://github.com/astral-sh/ruff/issues/7175.
+
         super().__init__(f"Unlocked library: {library.identifier}")
 
 
@@ -21,4 +25,11 @@ class MultipleRefSpec(Exception):
 
         super().__init__(
             f"Multiple refspecs for library {libname}: {', '.join(deflist)}"
+        )
+
+
+class WorkspaceNotFound(Exception):
+    def __init__(self, start_path: Path, recursive: bool = False):
+        super().__init__(
+            f"No workspace found starting from {start_path}. Recursive search was {'on' if recursive else 'off'}"
         )
