@@ -7,7 +7,7 @@
 
 import re
 from pathlib import Path
-from typing import Set
+from typing import Dict
 
 from ..errors import LockFileSyntaxError
 from ..model import LibraryIdentifier, RefSpec, RefSpecKind
@@ -15,8 +15,8 @@ from ..model import LibraryIdentifier, RefSpec, RefSpecKind
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
-def from_file(path: Path) -> Set[LibraryIdentifier]:
-    libs = set()
+def from_file(path: Path) -> Dict[LibraryIdentifier, LibraryIdentifier]:
+    libs = dict()
 
     with open(path, "r") as fhandle:
         for lineno, linecontent in enumerate(fhandle, start=1):
@@ -63,12 +63,17 @@ def from_file(path: Path) -> Set[LibraryIdentifier]:
             locked_refspec = RefSpec(kind=RefSpecKind.Commit, value=locked_commit)
 
             # Create library identifier
-            lib_id = LibraryIdentifier(
-                name=name,
-                refspec=refspec,
-                locked_refspec=locked_refspec,
+            unlocked_lib_id = LibraryIdentifier(
+                name=name, refspec=refspec, locked_refspec=None
             )
 
-            libs.add(lib_id)
+            if unlocked_lib_id in libs:
+                raise LockFileSyntaxError(
+                    lineno,
+                    linecontent,
+                    f"Duplicate entry for {unlocked_lib_id.identifier}",
+                )
+
+            libs[unlocked_lib_id] = locked_refspec
 
     return libs

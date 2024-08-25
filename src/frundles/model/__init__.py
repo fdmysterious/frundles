@@ -5,9 +5,9 @@
 - August 2024
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Set
+from typing import Optional
 from pathlib import Path
 
 from ..errors import UnlockedRefSpec
@@ -111,8 +111,13 @@ class LibraryIdentifier:
 
         return f"{self.name}-{self.locked_refspec.value}"
 
+    def lock(self, locked_refspec: RefSpec):
+        return LibraryIdentifier(
+            name=self.name, refspec=self.refspec, locked_refspec=locked_refspec
+        )
+
     def __hash__(self):
-        if self.locked_identifier:
+        if self.locked_refspec:
             return hash(self.locked_identifier)
         else:
             return hash(self.identifier)
@@ -128,8 +133,11 @@ class Library:
     """Git origin URL"""
     origin: str
 
-    """Set of dependencies"""
-    dependencies: Set[LibraryIdentifier] = field(default_factory=set)
+    # """Set of dependencies"""
+    # dependencies: Set[LibraryIdentifier] = field(default_factory=set)
+
+    def lock(self, refspec: RefSpec):
+        return Library(identifier=self.identifier.lock(refspec), origin=self.origin)
 
     def __hash__(self):
         return self.identifier.__hash__()

@@ -47,14 +47,22 @@ def parse_library_definition(data: Dict[str, any]) -> Library:
     commit = data.get("commit", None)
 
     refspec = None
+    locked_refspec = None
+
+    # -- branch is specified
     if (branch is not None) and (tag is None) and (commit is None):
         refspec = RefSpec(kind=RefSpecKind.Branch, value=branch)
+        locked_refspec = None
 
+    # -- tag is specified
     elif (branch is None) and (tag is not None) and (commit is None):
         refspec = RefSpec(kind=RefSpecKind.Tag, value=tag)
+        locked_refspec = None
 
+    # -- commit is specified -> lock the refspec
     elif (branch is None) and (tag is None) and (commit is not None):
         refspec = RefSpec(kind=RefSpecKind.Commit, value=commit)
+        locked_refspec = refspec
 
     else:
         raise MultipleRefSpec(
@@ -62,7 +70,9 @@ def parse_library_definition(data: Dict[str, any]) -> Library:
         )
 
     # Build the corresponding library identifier
-    lib_id = LibraryIdentifier(name=name, refspec=refspec)
+    lib_id = LibraryIdentifier(
+        name=name, refspec=refspec, locked_refspec=locked_refspec
+    )
 
     # Build the final Library object
     lib = Library(identifier=lib_id, origin=origin)
