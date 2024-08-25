@@ -55,6 +55,25 @@ class RefSpec:
 ###########################################
 
 
+class LibraryStatus(Enum):
+    """Indicates the current status of the library"""
+
+    """Library hasn't been cloned yet"""
+    NotCloned = "not_cloned"
+
+    """Everything is fine : library is fetched at correct revision"""
+    Ok = "ok"
+
+    """Library is fetched at correct revision, but uncomitted modifications are present in files"""
+    Dirty = "dirty"
+
+    """Library is not at the target revision"""
+    Modified = "modified"
+
+    """Library folder is broken"""
+    Invalid = "invalid"
+
+
 @dataclass(frozen=True)
 class LibraryIdentifier:
     """
@@ -82,6 +101,15 @@ class LibraryIdentifier:
             raise UnlockedRefSpec(self.refspec)
 
         return f"{self.name}:{self.locked_refspec.value}"
+
+    @property
+    def locked_identifier_path(self):
+        """Returns an identifier that shall be unique to a given library, to be used with folder names"""
+
+        if self.locked_refspec is None:
+            raise UnlockedRefSpec(self.refspec)
+
+        return f"{self.name}-{self.locked_refspec.value}"
 
     def __hash__(self):
         if self.locked_identifier:

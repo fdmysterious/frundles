@@ -7,6 +7,7 @@
 
 import re
 from pathlib import Path
+from typing import Set
 
 from ..errors import LockFileSyntaxError
 from ..model import LibraryIdentifier, RefSpec, RefSpecKind
@@ -14,7 +15,7 @@ from ..model import LibraryIdentifier, RefSpec, RefSpecKind
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
-def from_file(path: Path):
+def from_file(path: Path) -> Set[LibraryIdentifier]:
     libs = set()
 
     with open(path, "r") as fhandle:
