@@ -7,14 +7,18 @@
 
 import logging
 import tempfile
+import traceback
+import urllib.parse
 
-from ..model import ItemIdentifier, FetchStatus, Library, WorkspaceInfo
+from pathlib import Path
+
+from ..model import ItemIdentifier, FetchStatus, Library, WorkspaceInfo, RefSpec
 from git import Repo, InvalidGitRepositoryError
 
 from . import catalog
 
 
-log = logging.getLogger("backend.library")
+log = logging.getLogger("backend.artifact")
 
 
 ###########################################
@@ -95,14 +99,46 @@ def check_status(
 ###########################################
 
 
-def clone(root_wspace: WorkspaceInfo, cur_wspace: WorkspaceInfo, lib: Library):
-    target_dir = catalog.get_lib_path(root_wspace, cur_wspace, lib.identifier)
-
-    log.info(f"Clone library {lib.identifier.identifier} to {target_dir}")
+def clone(target_dir: Path, origin: str, target_refspec: RefSpec):
+    target_dir = Path(target_dir)
+    target_dir.mkdir(exist_ok=False, parents=True)
 
     repo = Repo.init(target_dir)
-    origin = repo.create_remote("origin", url=lib.origin)
+    origin = repo.create_remote("origin", url=origin)
 
     origin.fetch()
 
-    repo.git.checkout(lib.identifier.locked_refspec.value)
+    repo.git.checkout(target_refspec.value)
+
+
+# def clone(root_wspace: WorkspaceInfo, cur_wspace: WorkspaceInfo, lib: Library):
+#    target_dir = catalog.get_lib_path(root_wspace, cur_wspace, lib.identifier)
+#
+#    log.info(f"Clone library {lib.identifier.identifier} to {target_dir}")
+#
+#    repo = Repo.init(target_dir)
+#    origin = repo.create_remote("origin", url=lib.origin)
+#
+#    origin.fetch()
+#
+#    repo.git.checkout(lib.identifier.locked_refspec.value)
+
+
+def get_origin(repo_dir: Path):
+    if (repo_dir / ".git").is_dir():
+        try:
+            repo = Repo(repo_dir)
+            url = repo.remotes.origin.url
+            return url
+
+        except Exception as exc:
+            log.error(f"Could not get remote URL for repository {repo_dir}: {str(exc)}")
+            log.debug(traceback.format_exc())
+            return None
+    else:
+        return None
+
+
+def has_local_origin(origin: str):
+    url = urllib.parse.urlsplit(origin)
+    return url.scheme in {"", "file"}

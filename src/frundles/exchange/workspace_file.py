@@ -7,53 +7,34 @@
 
 import re
 import yaml
-from furl import furl
 
+import urllib.parse
 from pathlib import Path
+
 from typing import Dict
 
 from ..model import (
+    ArtifactKind,
     WorkspaceInfo,
     WorkspaceMode,
     ItemIdentifier,
     Library,
     RefSpec,
     RefSpecKind,
+    External,
 )
 from ..errors import MultipleRefSpec
 
 
-def parse_workspace_info(file_path: Path, data: Dict[str, any]) -> WorkspaceInfo:
-    config_file_path = file_path.resolve().parent
-    catalog_dir = Path(data["catalog_dir"])
-    workspace_mode = data.get("mode", None)
-
-    # Try to parse workspace mode if given
-    if workspace_mode is not None:
-        workspace_mode = WorkspaceMode(workspace_mode)
-
-    # Resolve catalog dir relative to current config file path if needed
-    if not catalog_dir.is_absolute():
-        catalog_dir = config_file_path / catalog_dir
-
-    return WorkspaceInfo(catalog_dir=catalog_dir, mode=workspace_mode)
-
-
-def parse_library_definition(data: Dict[str, any]) -> Library:
-    origin = data["origin"]
-
-    # Parse the url and extract the library name
-    origin = data["origin"]
-    last_path_token = None
-
-    if origin.startswith("ssh://"):
-        last_path_token = origin.split(":")[2].split("/")[-1]
-    else:
-        origin_url = furl(origin)
-        last_path_token = origin_url.path.segments[-1]
-
+def _extract_name_from_repo_url(x: str):
+    url_scheme, url_netloc, url_path, url_query, url_fragment = urllib.parse.urlsplit(x)
+    last_path_token = Path(url_path).parts[-1]
     name = re.sub("[.]git$", "", last_path_token)  # Remove trailing .git if needed
 
+    return name
+
+
+def _parse_refspec(name: str, data: Dict[str, any]) -> RefSpec:
     # Parse refspec ; check that only one ref specification is defined, and build the corresponding refspec
     branch = data.get("branch", None)
     tag = data.get("tag", None)
@@ -82,13 +63,72 @@ def parse_library_definition(data: Dict[str, any]) -> Library:
             name, defs={"branch": branch, "tag": tag, "commit": commit}
         )
 
+    return refspec, locked_refspec
+
+
+def parse_workspace_info(cwd: Path, data: Dict[str, any]) -> WorkspaceInfo:
+    catalog_dir = Path(data["catalog_dir"])
+    workspace_mode = data.get("mode", None)
+
+    # Try to parse workspace mode if given
+    if workspace_mode is not None:
+        workspace_mode = WorkspaceMode(workspace_mode)
+
+    # Resolve catalog dir relative to current config file path if needed
+    if not catalog_dir.is_absolute():
+        catalog_dir = cwd / catalog_dir
+
+    return WorkspaceInfo(catalog_dir=catalog_dir, mode=workspace_mode)
+
+
+def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
+    origin = data["origin"]
+
+    # Parse the url and extract the library name
+    name = _extract_name_from_repo_url(origin)
+
+    # Parse refspecs
+    refspec, locked_refspec = _parse_refspec(name, data)
+
     # Build the corresponding library identifier
-    lib_id = ItemIdentifier(name=name, refspec=refspec, locked_refspec=locked_refspec)
+    lib_id = ItemIdentifier(
+        kind=ArtifactKind.Library,
+        name=name,
+        refspec=refspec,
+        locked_refspec=locked_refspec,
+    )
 
     # Build the final Library object
     lib = Library(identifier=lib_id, origin=origin)
 
     return lib
+
+
+def parse_external_definition(cwd, data: Dict[str, any]) -> External:
+    origin = data["origin"]
+    dest_path = data["dest_path"]
+
+    # Parse the URL and extract the external name
+    name = _extract_name_from_repo_url(origin)
+
+    # Parse refspecs
+    refspec, locked_refspec = _parse_refspec(name, data)
+
+    # Parse destination folder
+    dest_path = Path(dest_path)
+
+    # Build the corresponding external identifier
+    ext_id = ItemIdentifier(
+        kind=ArtifactKind.External,
+        name=name,
+        refspec=refspec,
+        locked_refspec=locked_refspec,
+    )
+
+    # Build the External object
+    ext = External(identifier=ext_id, origin=origin, dest_path=dest_path)
+
+    return ext
 
 
 def from_file(path: Path):
@@ -98,6 +138,7 @@ def from_file(path: Path):
     """
 
     path = Path(path)  # ensure path var is of Path type
+    cwd = path.parent.resolve()
 
     data = None
     with open(path, "r") as fhandle:
@@ -106,9 +147,16 @@ def from_file(path: Path):
     # TODO # File schema validation
 
     # Parse workspace info
-    workspace_info = parse_workspace_info(path, data["workspace"])
+    workspace_info = parse_workspace_info(cwd, data["workspace"])
 
     # Parse libraries definitions
-    libraries = [parse_library_definition(lib) for lib in data["libraries"]]
+    libraries = [
+        parse_library_definition(cwd, lib) for lib in data.get("libraries", [])
+    ]
 
-    return workspace_info, libraries
+    # Parse externals
+    externals = [
+        parse_external_definition(cwd, ext) for ext in data.get("externals", [])
+    ]
+
+    return workspace_info, libraries, externals

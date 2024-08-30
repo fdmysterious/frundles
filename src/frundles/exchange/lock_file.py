@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, FrozenSet
 
 from ..errors import LockFileSyntaxError
-from ..model import ItemIdentifier, RefSpec, RefSpecKind
+from ..model import ItemIdentifier, RefSpec, RefSpecKind, ArtifactKind
 
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
@@ -22,16 +22,26 @@ def from_file(path: Path) -> Dict[ItemIdentifier, ItemIdentifier]:
         for lineno, linecontent in enumerate(fhandle, start=1):
             tokens = linecontent.split(":")
 
-            if len(tokens) != 4:
+            if len(tokens) != 5:
                 raise LockFileSyntaxError(
                     lineno, linecontent, "Expected for segments, separated by ':'"
                 )
 
-            name = tokens[0].strip()
-            refspec_kind_s = tokens[1].strip()
+            artifact_kind_s = tokens[0].strip()
+            artifact_kind = None
+            name = tokens[1].strip()
+            refspec_kind_s = tokens[2].strip()
             refspec_kind = None
-            refspec_value = tokens[2].strip()
-            locked_commit = tokens[3].strip()
+            refspec_value = tokens[3].strip()
+            locked_commit = tokens[4].strip()
+
+            # Parse artifact kind
+            try:
+                artifact_kind = ArtifactKind(artifact_kind_s)
+            except ValueError:
+                raise LockFileSyntaxError(
+                    lineno, linecontent, f"Invalid artifact kind: '{artifact_kind_s}'"
+                )
 
             # Parse refspec
             try:
@@ -64,7 +74,7 @@ def from_file(path: Path) -> Dict[ItemIdentifier, ItemIdentifier]:
 
             # Create library identifier
             unlocked_lib_id = ItemIdentifier(
-                name=name, refspec=refspec, locked_refspec=None
+                kind=artifact_kind, name=name, refspec=refspec, locked_refspec=None
             )
 
             if unlocked_lib_id in libs:
@@ -83,7 +93,7 @@ def to_file(path: Path, libs: FrozenSet[ItemIdentifier]):
     with open(path, "w") as fhandle:
         for lib_id in libs:
             print(
-                f"{lib_id.name}:{lib_id.refspec.kind.value}:{lib_id.refspec.value}:{lib_id.locked_refspec.value}",
+                f"{lib_id.kind.value}:{lib_id.name}:{lib_id.refspec.kind.value}:{lib_id.refspec.value}:{lib_id.locked_refspec.value}",
                 file=fhandle,
             )
 

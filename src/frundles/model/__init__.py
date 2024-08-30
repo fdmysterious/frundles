@@ -51,7 +51,7 @@ class RefSpec:
 
 
 ###########################################
-# Fetch status
+# Fetch status and artifact kind
 ###########################################
 
 
@@ -74,6 +74,13 @@ class FetchStatus(Enum):
     Invalid = "invalid"
 
 
+class ArtifactKind(Enum):
+    """Indicates the artifact kind. Useful for lock file primarly"""
+
+    Library = "lib"
+    External = "ext"
+
+
 ###########################################
 # Library related classes
 ###########################################
@@ -85,6 +92,9 @@ class ItemIdentifier:
     Library identification information
     """
 
+    """The kind of the artifact"""
+    kind: ArtifactKind
+
     """The name of the library"""
     name: str
 
@@ -94,9 +104,15 @@ class ItemIdentifier:
     """The locked revision"""
     locked_refspec: Optional[RefSpec] = None
 
+    def __eq__(self, other: "ItemIdentifier"):
+        id_self = self.locked_identifier if self.is_locked() else self.identifier
+        id_other = other.locked_identifier if other.is_locked() else other.identifier
+
+        return id_self == id_other
+
     @property
     def identifier(self):
-        return f"{self.name}:{self.refspec.value}"
+        return f"{self.kind.value}:{self.name}:{self.refspec.value}"
 
     @property
     def identifier_path(self):
@@ -109,7 +125,7 @@ class ItemIdentifier:
         if self.locked_refspec is None:
             raise UnlockedRefSpec(self.refspec)
 
-        return f"{self.name}:{self.locked_refspec.value}"
+        return f"{self.kind.value}:{self.name}:{self.locked_refspec.value}"
 
     @property
     def locked_identifier_path(self):
@@ -122,20 +138,25 @@ class ItemIdentifier:
 
     def lock(self, locked_refspec: RefSpec):
         return ItemIdentifier(
-            name=self.name, refspec=self.refspec, locked_refspec=locked_refspec
+            kind=self.kind,
+            name=self.name,
+            refspec=self.refspec,
+            locked_refspec=locked_refspec,
         )
 
     def unlock(self):
-        return ItemIdentifier(name=self.name, refspec=self.refspec, locked_refspec=None)
+        return ItemIdentifier(
+            kind=self.kind, name=self.name, refspec=self.refspec, locked_refspec=None
+        )
 
     def is_locked(self):
         return self.locked_refspec is not None
 
     def __hash__(self):
         if self.locked_refspec:
-            return hash(self.locked_identifier)
+            return self.locked_identifier.__hash__()
         else:
-            return hash(self.identifier)
+            return self.identifier.__hash__()
 
 
 @dataclass
@@ -148,11 +169,31 @@ class Library:
     """Git origin URL"""
     origin: str
 
-    # """Set of dependencies"""
-    # dependencies: Set[ItemIdentifier] = field(default_factory=set)
-
     def lock(self, refspec: RefSpec):
         return Library(identifier=self.identifier.lock(refspec), origin=self.origin)
+
+    def __hash__(self):
+        return self.identifier.__hash__()
+
+    def change_origin(self, new_origin: str):
+        return Library(identifier=self.identifier, origin=new_origin)
+
+
+@dataclass
+class External:
+    """Contains detailled information about an external reference"""
+
+    """Unique identification information for the external"""
+    identifier: ItemIdentifier
+
+    """Git origin URL"""
+    origin: str
+
+    """Destination folder"""
+    dest_path: Path
+
+    def lock(self, refspec: RefSpec):
+        return External(identifier=self.identifier.lock(refspec, origin=self.origin))
 
     def __hash__(self):
         return self.identifier.__hash__()

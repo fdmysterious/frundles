@@ -10,7 +10,7 @@ import logging
 import traceback
 
 from functools import partial
-from typing import Dict, List, FrozenSet
+from typing import Dict, List, FrozenSet, Tuple
 from pathlib import Path
 from ..errors import WorkspaceNotFound
 
@@ -26,7 +26,7 @@ from ..model import (
 )
 
 from . import catalog
-from . import library
+from . import artifact
 
 log = logging.getLogger("backend.workspace")
 
@@ -83,6 +83,8 @@ def load_workspace(path: Path):
     """
 
     path = Path(path).resolve()
+    workspace_git_origin = artifact.get_origin(path)
+    ws_is_local_origin = artifact.has_local_origin(workspace_git_origin or "")
 
     log.info(f"Load workspace information from {path}")
 
@@ -90,7 +92,29 @@ def load_workspace(path: Path):
     lockfile = (path / "frundles.lock").resolve()
 
     # Load workspace information from config file
-    wsinfo, libraries = workspace_file.from_file(ws_file)
+    wsinfo, libraries, externals = workspace_file.from_file(ws_file)
+
+    # Resolve local dependencies, if needed
+    def resolve_local_lib_dependency(path: Path, lib: Library):
+        if artifact.has_local_origin(lib.origin):
+            if not ws_is_local_origin:
+                log.warning(
+                    f"Depedency to {lib.origin} for workspace located in {path} points to a local directory, but this workspace has a non-local remote URL. This may lead to some weird stuff. Assuming a path relative to the local directory"
+                )
+                lib = lib.change_origin((path / lib.origin).resolve())
+            else:
+                if workspace_git_origin:
+                    lib = lib.change_origin(
+                        (Path(workspace_git_origin) / lib.origin).resolve()
+                    )
+                else:
+                    log.warning(
+                        f"Assuming {path} start path to resolve dependency to local repository {lib.origin}"
+                    )
+                    lib = lib.change_origin((path / lib.origin).resolve())
+        return lib
+
+    libraries = [resolve_local_lib_dependency(path, lib) for lib in libraries]
 
     # Load locked references from lock file, if it exists
     def resolve_locked_lib(lib: Library, locked_libs: Dict[ItemIdentifier, RefSpec]):
@@ -107,8 +131,9 @@ def load_workspace(path: Path):
         resolve_func = partial(resolve_locked_lib, locked_libs=locked_libs)
 
         libraries = [resolve_func(lib) for lib in libraries]
+        externals = [resolve_func(ext) for ext in externals]
 
-    return wsinfo, libraries, locked_libs
+    return wsinfo, libraries, externals, locked_libs
 
 
 def sync_workspace(path: Path):
@@ -119,7 +144,7 @@ def sync_workspace(path: Path):
     path = Path(path).resolve()
 
     # Load workspace information
-    root_wspace, libraries, resolved_refspecs = load_workspace(path)
+    root_wspace, libraries, externals, resolved_refspecs = load_workspace(path)
     resolved_refspecs = resolved_refspecs or dict()
 
     log.info(
@@ -131,12 +156,14 @@ def sync_workspace(path: Path):
     catalog.ensure_catalog_dir(root_wspace)
 
     # Sync libraries
-    def fetch_libraries(
+    def fetch_artifacts(
         wspace: WorkspaceInfo,
+        fetch_mode: WorkspaceMode,
         lockfile_path: Path,
         libraries: List[Library],
         resolved_refspecs: Dict[ItemIdentifier, RefSpec] = None,
         synced_libraries: FrozenSet[ItemIdentifier] = frozenset(),
+        fetch_stack: Tuple[ItemIdentifier] = tuple(),
     ):
         resolved_refspecs = dict(
             resolved_refspecs or dict()
@@ -146,9 +173,24 @@ def sync_workspace(path: Path):
         new_resolved_refspecs = dict()
 
         for lib in libraries:
-            # If library is already synced, ignore
-            if (lib.identifier in synced_libraries) or (
-                lib.identifier in new_synced_libraries
+            # If a circular dependency is detected, error
+            log.info(
+                f"Fetch stack: {' -> '.join(map(lambda x: x.identifier, fetch_stack))}"
+            )
+            log.info(f"Lib identifier: {lib.identifier}")
+            if lib.identifier in set(fetch_stack):
+                fetch_order = (
+                    " -> ".join(map(lambda x: x.identifier, fetch_stack))
+                    + f" -> {lib.identifier.identifier}"
+                )
+                log.error(
+                    f"CIRCULAR DEPENDECY DETECTED: {fetch_order}. Not processing this dependency!"
+                )
+
+            # If library is already synced and in aggregate mode, ignore
+            elif (fetch_mode == WorkspaceMode.Aggregate) and (
+                (lib.identifier in synced_libraries)
+                or (lib.identifier in new_synced_libraries)
             ):
                 log.warning(f"Library {lib.identifier} is already synced, ignoring")
 
@@ -169,10 +211,25 @@ def sync_workspace(path: Path):
                                 ]
                             )
 
-                            # If library is already synced, ignore
+                            # Avoid circular dependencies
                             # FIXME # Duplicated code
-                            if (lib.identifier in synced_libraries) or (
-                                lib.identifier in new_synced_libraries
+                            if lib.identifier in set(fetch_stack):
+                                fetch_order = (
+                                    " -> ".join(
+                                        map(lambda x: x.locked_identifier, fetch_stack)
+                                    )
+                                    + f" -> {lib.identifier.locked_identifier}"
+                                )
+                                log.error(
+                                    f"CIRCULAR DEPENDECY DETECTED: {fetch_order}. Not processing this dependency!"
+                                )
+                                continue  # Skip this one
+
+                            # If library (with now locked reference) is already synced, ignore
+                            # FIXME # Duplicated code
+                            elif (fetch_mode == WorkspaceMode.Aggregate) and (
+                                (lib.identifier in synced_libraries)
+                                or (lib.identifier in new_synced_libraries)
                             ):
                                 log.warning(
                                     f"Library {lib.identifier} is already synced, ignoring"
@@ -184,7 +241,7 @@ def sync_workspace(path: Path):
                             log.warning(
                                 f"{lib.identifier} is not locked, resolve commit"
                             )
-                            oid = library._get_commit_sha1(lib)
+                            oid = artifact._get_commit_sha1(lib)
 
                             lib = lib.lock(RefSpec(kind=RefSpecKind.Commit, value=oid))
 
@@ -198,12 +255,21 @@ def sync_workspace(path: Path):
                             )
 
                     # Check status for library
-                    lib_status = library.check_status(
+                    lib_status = artifact.check_status(
                         root_wspace, wspace, lib.identifier
                     )
 
                     if lib_status == FetchStatus.NotCloned:
-                        library.clone(root_wspace, wspace, lib)
+                        target_dir = catalog.get_lib_path(
+                            root_wspace, wspace, lib.identifier
+                        )
+                        log.info(
+                            f"Clone {lib.identifier.identifier} library to {target_dir}"
+                        )
+                        artifact.clone(
+                            target_dir, lib.origin, lib.identifier.locked_refspec
+                        )
+
                     elif lib_status == FetchStatus.Dirty:
                         log.warning(
                             f"{lib.identifier.identifier} has untracked modifications. This could break your project as it's inconsistent."
@@ -222,20 +288,24 @@ def sync_workspace(path: Path):
                             f"'{lib_folder}' contains frundles data, process it recursively"
                         )
 
-                        lib_wsinfo, lib_ws_libraries, _ = load_workspace(lib_folder)
+                        lib_wsinfo, lib_ws_libraries, lib_ws_externals, _ = (
+                            load_workspace(lib_folder)
+                        )
 
                         if root_wspace.mode == WorkspaceMode.Recurse:
                             catalog.ensure_catalog_dir(lib_wsinfo)
 
                         lib_new_synced_libraries, lib_new_resolved_refspecs = (
-                            fetch_libraries(
+                            fetch_artifacts(
                                 lib_wsinfo,
+                                fetch_mode=fetch_mode,
                                 lockfile_path=lockfile_path,
                                 libraries=lib_ws_libraries,
                                 resolved_refspecs=resolved_refspecs
                                 | new_resolved_refspecs,
                                 synced_libraries=synced_libraries
                                 | new_synced_libraries,
+                                fetch_stack=fetch_stack + (lib.identifier,),
                             )
                         )
 
@@ -253,9 +323,10 @@ def sync_workspace(path: Path):
 
         return frozenset(new_synced_libraries), new_resolved_refspecs
 
-    synced_libraries, resolved_refspecs = fetch_libraries(
+    synced_libraries, resolved_refspecs = fetch_artifacts(
         root_wspace,
-        path / "frundles.lock",  # FIXME # Refactor in function
+        fetch_mode=root_wspace.mode,
+        lockfile_path=path / "frundles.lock",  # FIXME # Refactor in function
         libraries=libraries,
         resolved_refspecs=resolved_refspecs,
     )
