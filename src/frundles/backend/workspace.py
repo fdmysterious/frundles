@@ -181,10 +181,6 @@ def sync_workspace(path: Path):
 
         for lib in libraries:
             # If a circular dependency is detected, error
-            log.info(
-                f"Fetch stack: {' -> '.join(map(lambda x: x.identifier, fetch_stack))}"
-            )
-            log.info(f"Lib identifier: {lib.identifier}")
             if lib.identifier in set(fetch_stack):
                 fetch_order = (
                     " -> ".join(map(lambda x: x.identifier, fetch_stack))
@@ -246,7 +242,7 @@ def sync_workspace(path: Path):
                         # Commit must be resolved
                         else:
                             log.warning(
-                                f"{lib.identifier} is not locked, resolve commit"
+                                f"{lib.identifier.identifier} is not locked, resolve commit"
                             )
                             oid = artifact._get_commit_sha1(lib)
 
