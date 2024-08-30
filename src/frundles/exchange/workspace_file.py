@@ -87,9 +87,11 @@ def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
     # Parse the url and extract the library name
     name = _extract_name_from_repo_url(origin)
 
-
     # Parse refspecs
     refspec, locked_refspec = _parse_refspec(name, data)
+
+    # Extract friendly name if any, or deduce from repo name and refspec tag
+    friendly_name = data.get("friendly_name", f"{name}:{refspec.value}")
 
     # Build the corresponding library identifier
     lib_id = ItemIdentifier(
