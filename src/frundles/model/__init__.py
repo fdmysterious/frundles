@@ -94,6 +94,10 @@ class LibraryIdentifier:
         return f"{self.name}:{self.refspec.value}"
 
     @property
+    def identifier_path(self):
+        return f"{self.name}-{self.refspec.value.replace('/', '_')}"
+
+    @property
     def locked_identifier(self):
         """Returns an identifier string that shall be unique to a given library"""
 
@@ -164,4 +168,8 @@ class WorkspaceMode(Enum):
 @dataclass
 class WorkspaceInfo:
     catalog_dir: Path
-    mode: WorkspaceMode = WorkspaceMode.Aggregate
+    mode: WorkspaceMode = None
+
+    def __post_init__(self):
+        # Set default values
+        self.mode = self.mode or WorkspaceMode.Aggregate

@@ -15,7 +15,15 @@ from pathlib import Path
 from ..errors import WorkspaceNotFound
 
 from ..exchange import workspace_file, lock_file
-from ..model import LibraryIdentifier, RefSpec, Library, LibraryStatus, RefSpecKind
+from ..model import (
+    LibraryIdentifier,
+    RefSpec,
+    Library,
+    LibraryStatus,
+    RefSpecKind,
+    WorkspaceInfo,
+    WorkspaceMode,
+)
 
 from . import catalog
 from . import library
@@ -110,19 +118,21 @@ def sync_workspace(path: Path):
 
     path = Path(path).resolve()
 
-    log.info(f"Syncing workspace located at {path}")
-
     # Load workspace information
-    wsinfo, libraries, resolved_refspecs = load_workspace(path)
+    root_wspace, libraries, resolved_refspecs = load_workspace(path)
     resolved_refspecs = resolved_refspecs or dict()
 
+    log.info(
+        f"Syncing workspace located at {path}, using mode '{root_wspace.mode.value}'"
+    )
+
     # Ensure catalog dir status
-    log.debug(f"Ensure catalog dir status for {wsinfo.catalog_dir}")
-    catalog.ensure_catalog_dir(wsinfo)
+    log.debug(f"Ensure catalog dir status for {root_wspace.catalog_dir}")
+    catalog.ensure_catalog_dir(root_wspace)
 
     # Sync libraries
     def fetch_libraries(
-        catalog_dir: Path,
+        wspace: WorkspaceInfo,
         lockfile_path: Path,
         libraries: List[Library],
         resolved_refspecs: Dict[LibraryIdentifier, RefSpec] = None,
@@ -188,10 +198,12 @@ def sync_workspace(path: Path):
                             )
 
                     # Check status for library
-                    lib_status = library.check_status(catalog_dir, lib.identifier)
+                    lib_status = library.check_status(
+                        root_wspace, wspace, lib.identifier
+                    )
 
                     if lib_status == LibraryStatus.NotCloned:
-                        library.clone(catalog_dir, lib)
+                        library.clone(root_wspace, wspace, lib)
                     elif lib_status == LibraryStatus.Dirty:
                         log.warning(
                             f"{lib.identifier.identifier} has untracked modifications. This could break your project as it's inconsistent."
@@ -202,7 +214,9 @@ def sync_workspace(path: Path):
                         )
 
                     # Process library if it's a workspace
-                    lib_folder = catalog.get_lib_path(catalog_dir, lib.identifier)
+                    lib_folder = catalog.get_lib_path(
+                        root_wspace, wspace, lib.identifier
+                    )
                     if is_workspace(lib_folder):
                         log.info(
                             f"'{lib_folder}' contains frundles data, process it recursively"
@@ -210,9 +224,12 @@ def sync_workspace(path: Path):
 
                         lib_wsinfo, lib_ws_libraries, _ = load_workspace(lib_folder)
 
+                        if root_wspace.mode == WorkspaceMode.Recurse:
+                            catalog.ensure_catalog_dir(lib_wsinfo)
+
                         lib_new_synced_libraries, lib_new_resolved_refspecs = (
                             fetch_libraries(
-                                catalog_dir=catalog_dir,
+                                lib_wsinfo,
                                 lockfile_path=lockfile_path,
                                 libraries=lib_ws_libraries,
                                 resolved_refspecs=resolved_refspecs
@@ -237,7 +254,7 @@ def sync_workspace(path: Path):
         return frozenset(new_synced_libraries), new_resolved_refspecs
 
     synced_libraries, resolved_refspecs = fetch_libraries(
-        wsinfo.catalog_dir,
+        root_wspace,
         path / "frundles.lock",  # FIXME # Refactor in function
         libraries=libraries,
         resolved_refspecs=resolved_refspecs,
