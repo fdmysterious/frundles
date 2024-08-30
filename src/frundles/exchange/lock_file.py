@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Dict, FrozenSet
 
 from ..errors import LockFileSyntaxError
-from ..model import LibraryIdentifier, RefSpec, RefSpecKind
+from ..model import ItemIdentifier, RefSpec, RefSpecKind
 
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
-def from_file(path: Path) -> Dict[LibraryIdentifier, LibraryIdentifier]:
+def from_file(path: Path) -> Dict[ItemIdentifier, ItemIdentifier]:
     libs = dict()
 
     with open(path, "r") as fhandle:
@@ -63,7 +63,7 @@ def from_file(path: Path) -> Dict[LibraryIdentifier, LibraryIdentifier]:
             locked_refspec = RefSpec(kind=RefSpecKind.Commit, value=locked_commit)
 
             # Create library identifier
-            unlocked_lib_id = LibraryIdentifier(
+            unlocked_lib_id = ItemIdentifier(
                 name=name, refspec=refspec, locked_refspec=None
             )
 
@@ -79,7 +79,7 @@ def from_file(path: Path) -> Dict[LibraryIdentifier, LibraryIdentifier]:
     return libs
 
 
-def to_file(path: Path, libs: FrozenSet[LibraryIdentifier]):
+def to_file(path: Path, libs: FrozenSet[ItemIdentifier]):
     with open(path, "w") as fhandle:
         for lib_id in libs:
             print(
@@ -88,7 +88,7 @@ def to_file(path: Path, libs: FrozenSet[LibraryIdentifier]):
             )
 
 
-def add_to_lock_file(path: Path, lib_id: LibraryIdentifier):
+def add_to_lock_file(path: Path, lib_id: ItemIdentifier):
     try:
         locked_libs = {k.lock(v) for k, v in from_file(path).items()}
 

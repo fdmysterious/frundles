@@ -8,7 +8,7 @@
 import logging
 import tempfile
 
-from ..model import LibraryIdentifier, FetchStatus, Library, WorkspaceInfo
+from ..model import ItemIdentifier, FetchStatus, Library, WorkspaceInfo
 from git import Repo, InvalidGitRepositoryError
 
 from . import catalog
@@ -58,7 +58,7 @@ def _get_commit_sha1(lib: Library):
 
 
 def check_status(
-    root_wspace: WorkspaceInfo, cur_wspace: WorkspaceInfo, lib_id: LibraryIdentifier
+    root_wspace: WorkspaceInfo, cur_wspace: WorkspaceInfo, lib_id: ItemIdentifier
 ):
     folder_path = catalog.get_lib_path(root_wspace, cur_wspace, lib_id)
 

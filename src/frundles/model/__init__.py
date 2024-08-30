@@ -51,7 +51,7 @@ class RefSpec:
 
 
 ###########################################
-# Library related classes
+# Fetch status
 ###########################################
 
 
@@ -74,8 +74,13 @@ class FetchStatus(Enum):
     Invalid = "invalid"
 
 
+###########################################
+# Library related classes
+###########################################
+
+
 @dataclass(frozen=True)
-class LibraryIdentifier:
+class ItemIdentifier:
     """
     Library identification information
     """
@@ -116,14 +121,12 @@ class LibraryIdentifier:
         return f"{self.name}-{self.locked_refspec.value}"
 
     def lock(self, locked_refspec: RefSpec):
-        return LibraryIdentifier(
+        return ItemIdentifier(
             name=self.name, refspec=self.refspec, locked_refspec=locked_refspec
         )
 
     def unlock(self):
-        return LibraryIdentifier(
-            name=self.name, refspec=self.refspec, locked_refspec=None
-        )
+        return ItemIdentifier(name=self.name, refspec=self.refspec, locked_refspec=None)
 
     def is_locked(self):
         return self.locked_refspec is not None
@@ -140,13 +143,13 @@ class Library:
     """Contains detailled information about a specific library"""
 
     """Unique identification information for the library"""
-    identifier: LibraryIdentifier
+    identifier: ItemIdentifier
 
     """Git origin URL"""
     origin: str
 
     # """Set of dependencies"""
-    # dependencies: Set[LibraryIdentifier] = field(default_factory=set)
+    # dependencies: Set[ItemIdentifier] = field(default_factory=set)
 
     def lock(self, refspec: RefSpec):
         return Library(identifier=self.identifier.lock(refspec), origin=self.origin)

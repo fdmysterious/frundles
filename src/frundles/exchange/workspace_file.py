@@ -15,7 +15,7 @@ from typing import Dict
 from ..model import (
     WorkspaceInfo,
     WorkspaceMode,
-    LibraryIdentifier,
+    ItemIdentifier,
     Library,
     RefSpec,
     RefSpecKind,
@@ -83,9 +83,7 @@ def parse_library_definition(data: Dict[str, any]) -> Library:
         )
 
     # Build the corresponding library identifier
-    lib_id = LibraryIdentifier(
-        name=name, refspec=refspec, locked_refspec=locked_refspec
-    )
+    lib_id = ItemIdentifier(name=name, refspec=refspec, locked_refspec=locked_refspec)
 
     # Build the final Library object
     lib = Library(identifier=lib_id, origin=origin)

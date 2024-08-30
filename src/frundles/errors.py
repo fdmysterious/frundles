@@ -11,7 +11,7 @@ from typing import Dict
 
 class UnlockedRefSpec(Exception):
     def __init__(self, library):
-        # NOTE # Precising library type as "LibraryIdentifier" (using the quotes for deferred reference)
+        # NOTE # Precising library type as "ItemIdentifier" (using the quotes for deferred reference)
         # breaks ruff type checking stuff. See https://github.com/astral-sh/ruff/issues/7175.
 
         super().__init__(f"Unlocked library: {library.identifier}")

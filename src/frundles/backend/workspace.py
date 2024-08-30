@@ -16,7 +16,7 @@ from ..errors import WorkspaceNotFound
 
 from ..exchange import workspace_file, lock_file
 from ..model import (
-    LibraryIdentifier,
+    ItemIdentifier,
     RefSpec,
     Library,
     FetchStatus,
@@ -93,7 +93,7 @@ def load_workspace(path: Path):
     wsinfo, libraries = workspace_file.from_file(ws_file)
 
     # Load locked references from lock file, if it exists
-    def resolve_locked_lib(lib: Library, locked_libs: Dict[LibraryIdentifier, RefSpec]):
+    def resolve_locked_lib(lib: Library, locked_libs: Dict[ItemIdentifier, RefSpec]):
         if lib.identifier in locked_libs:
             lib = lib.lock(locked_libs[lib.identifier])
 
@@ -135,8 +135,8 @@ def sync_workspace(path: Path):
         wspace: WorkspaceInfo,
         lockfile_path: Path,
         libraries: List[Library],
-        resolved_refspecs: Dict[LibraryIdentifier, RefSpec] = None,
-        synced_libraries: FrozenSet[LibraryIdentifier] = frozenset(),
+        resolved_refspecs: Dict[ItemIdentifier, RefSpec] = None,
+        synced_libraries: FrozenSet[ItemIdentifier] = frozenset(),
     ):
         resolved_refspecs = dict(
             resolved_refspecs or dict()
