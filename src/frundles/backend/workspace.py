@@ -36,6 +36,10 @@ log = logging.getLogger("backend.workspace")
 ###########################################
 
 
+def is_workspace(path: Path):
+    return (path / "frundles.yml").is_file()
+
+
 def _iter_path(pp: Path):
     cur_path = pp
 
@@ -48,33 +52,36 @@ def _iter_path(pp: Path):
             break
 
 
-def find_workspace(start_path: Path, recursive: bool = False):
+def find_current_workspace(start_path: Path):
     log.info(f"Search workspace file starting from {start_path}")
 
-    def check_frundles(path: Path):
-        return (path / "frundles.yml").is_file()
-
     # Search for file in folder
-    if check_frundles(start_path):
+    if is_workspace(start_path):
         return start_path
 
     # Search in parents
-    elif recursive:
+    else:
         for subpath in _iter_path(start_path.parent):
             log.debug(f"Check parent directory: {subpath}")
 
-            if check_frundles(subpath):
+            if is_workspace(subpath):
                 return subpath
-
         else:
-            raise WorkspaceNotFound(start_path=start_path, recursive=recursive)
-
-    else:
-        raise WorkspaceNotFound(start_path=start_path, recursive=recursive)
+            raise WorkspaceNotFound(start_path=start_path, recursive=True)
 
 
-def is_workspace(path: Path):
-    return (path / "frundles.yml").is_file()
+def find_root_workspace(start_path: Path):
+
+    cur_path = start_path
+
+    for subpath in _iter_path(start_path.parent):
+        if is_workspace(subpath):
+            cur_path = subpath
+
+    if not is_workspace(cur_path):
+        raise WorkspaceNotFound(start_path=start_path, recursive=True)
+
+    return cur_path
 
 
 def load_workspace(path: Path):
