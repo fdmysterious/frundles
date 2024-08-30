@@ -50,3 +50,8 @@ class LockFileSyntaxError(Exception):
         super().__init__(
             f"Invalid lockfile syntax on line {lineno} for line '{linecontent}': {error_explanation}"
         )
+
+
+class DuplicateFriendlyName(Exception):
+    def __init__(self, friendly_name: str):
+        super().__init__(f"Duplicate friendly name found: {friendly_name}")

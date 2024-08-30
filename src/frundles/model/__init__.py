@@ -104,6 +104,9 @@ class ItemIdentifier:
     """The locked revision"""
     locked_refspec: Optional[RefSpec] = None
 
+    """Optional friendly name"""
+    friendly_name: Optional[str] = None
+
     def __eq__(self, other: "ItemIdentifier"):
         id_self = self.locked_identifier if self.is_locked() else self.identifier
         id_other = other.locked_identifier if other.is_locked() else other.identifier
@@ -141,12 +144,17 @@ class ItemIdentifier:
             kind=self.kind,
             name=self.name,
             refspec=self.refspec,
+            friendly_name=self.friendly_name,
             locked_refspec=locked_refspec,
         )
 
     def unlock(self):
         return ItemIdentifier(
-            kind=self.kind, name=self.name, refspec=self.refspec, locked_refspec=None
+            kind=self.kind,
+            name=self.name,
+            refspec=self.refspec,
+            locked_refspec=None,
+            friendly_name=self.friendly_name,
         )
 
     def is_locked(self):

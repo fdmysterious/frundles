@@ -9,10 +9,14 @@ import logging
 import sys
 
 from . import sync
+from . import locate
+from . import list as cmd_list
 
 
 CLI_COMMANDS = {
     "sync": sync,
+    "locate": locate,
+    "list": cmd_list,
 }
 
 

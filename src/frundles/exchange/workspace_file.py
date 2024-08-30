@@ -23,7 +23,7 @@ from ..model import (
     RefSpecKind,
     External,
 )
-from ..errors import MultipleRefSpec
+from ..errors import MultipleRefSpec, DuplicateFriendlyName
 
 
 def _extract_name_from_repo_url(x: str):
@@ -87,6 +87,9 @@ def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
     # Parse the url and extract the library name
     name = _extract_name_from_repo_url(origin)
 
+    # Extract friendly name if any
+    friendly_name = data.get("friendly_name", None)
+
     # Parse refspecs
     refspec, locked_refspec = _parse_refspec(name, data)
 
@@ -94,6 +97,7 @@ def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
     lib_id = ItemIdentifier(
         kind=ArtifactKind.Library,
         name=name,
+        friendly_name=friendly_name,
         refspec=refspec,
         locked_refspec=locked_refspec,
     )
@@ -158,5 +162,14 @@ def from_file(path: Path):
     externals = [
         parse_external_definition(cwd, ext) for ext in data.get("externals", [])
     ]
+
+    # Search for duplicate friendly names
+    friendly_names = set()
+    for lib in libraries:
+        friendly_name = lib.identifier.friendly_name
+        if friendly_name in friendly_names:
+            raise DuplicateFriendlyName(friendly_name)
+        else:
+            friendly_names.add(friendly_name)
 
     return workspace_info, libraries, externals

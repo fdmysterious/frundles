@@ -37,6 +37,7 @@ dependencies = [
 	"GitPython",
 	"colorama",
 	"coloredlogs",
+	"tabulate",
 ]
 
 

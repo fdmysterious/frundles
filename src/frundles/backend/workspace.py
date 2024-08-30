@@ -333,3 +333,24 @@ def sync_workspace(path: Path):
         libraries=libraries,
         resolved_refspecs=resolved_refspecs,
     )
+
+
+def locate(path: Path, friendly_name: str):
+
+    root_wspace_path = find_root_workspace(path)
+
+    root_wspace, _, _, _ = load_workspace(root_wspace_path)
+
+    # TODO# Maybe some optimization if root_wspace_path == path?
+    cur_wspace, libraries, externals, _ = load_workspace(path)
+
+    try:
+        lib = next(
+            filter(lambda x: x.identifier.friendly_name == friendly_name, libraries)
+        )
+        lib_path = catalog.get_lib_path(root_wspace, cur_wspace, lib.identifier)
+
+        return lib_path
+
+    except StopIteration:
+        return None  # This library doesn't exist in the workspace
