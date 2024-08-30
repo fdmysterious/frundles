@@ -156,6 +156,12 @@ class Library:
 ###########################################
 
 
+class WorkspaceMode(Enum):
+    Aggregate = "aggregate"
+    Recurse = "recurse"
+
+
 @dataclass
 class WorkspaceInfo:
     catalog_dir: Path
+    mode: WorkspaceMode = WorkspaceMode.Aggregate

@@ -12,18 +12,31 @@ from furl import furl
 from pathlib import Path
 from typing import Dict
 
-from ..model import WorkspaceInfo, LibraryIdentifier, Library, RefSpec, RefSpecKind
+from ..model import (
+    WorkspaceInfo,
+    WorkspaceMode,
+    LibraryIdentifier,
+    Library,
+    RefSpec,
+    RefSpecKind,
+)
 from ..errors import MultipleRefSpec
 
 
 def parse_workspace_info(file_path: Path, data: Dict[str, any]) -> WorkspaceInfo:
     config_file_path = file_path.resolve().parent
     catalog_dir = Path(data["catalog_dir"])
+    workspace_mode = data.get("mode", None)
 
+    # Try to parse workspace mode if given
+    if workspace_mode is not None:
+        workspace_mode = WorkspaceMode(workspace_mode)
+
+    # Resolve catalog dir relative to current config file path if needed
     if not catalog_dir.is_absolute():
         catalog_dir = config_file_path / catalog_dir
 
-    return WorkspaceInfo(catalog_dir=catalog_dir)
+    return WorkspaceInfo(catalog_dir=catalog_dir, mode=workspace_mode)
 
 
 def parse_library_definition(data: Dict[str, any]) -> Library:
