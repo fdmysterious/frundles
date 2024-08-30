@@ -8,7 +8,7 @@
 import logging
 import tempfile
 
-from ..model import LibraryIdentifier, LibraryStatus, Library, WorkspaceInfo
+from ..model import LibraryIdentifier, FetchStatus, Library, WorkspaceInfo
 from git import Repo, InvalidGitRepositoryError
 
 from . import catalog
@@ -64,10 +64,10 @@ def check_status(
 
     # Step 1: Checked that folder exists
     if not folder_path.exists():
-        return LibraryStatus.NotCloned
+        return FetchStatus.NotCloned
 
     elif not folder_path.is_dir():
-        return LibraryStatus.Invalid
+        return FetchStatus.Invalid
 
     # Step 2: Check properties of git repository
     try:
@@ -76,18 +76,18 @@ def check_status(
 
         # Commit doesn't correspond to target
         if oid != lib_id.locked_refspec.value:
-            return LibraryStatus.Modified
+            return FetchStatus.Modified
 
         # Uncomitted modifications exists in repo
         elif _is_workspace_dirty(repo):
-            return LibraryStatus.Dirty
+            return FetchStatus.Dirty
 
         else:
-            return LibraryStatus.Ok
+            return FetchStatus.Ok
 
     # Directory is not a valid git repository
     except InvalidGitRepositoryError:
-        return LibraryStatus.Invalid
+        return FetchStatus.Invalid
 
 
 ###########################################

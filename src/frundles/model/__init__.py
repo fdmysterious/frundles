@@ -55,7 +55,7 @@ class RefSpec:
 ###########################################
 
 
-class LibraryStatus(Enum):
+class FetchStatus(Enum):
     """Indicates the current status of the library"""
 
     """Library hasn't been cloned yet"""

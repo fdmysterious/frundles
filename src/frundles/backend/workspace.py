@@ -19,7 +19,7 @@ from ..model import (
     LibraryIdentifier,
     RefSpec,
     Library,
-    LibraryStatus,
+    FetchStatus,
     RefSpecKind,
     WorkspaceInfo,
     WorkspaceMode,
@@ -202,13 +202,13 @@ def sync_workspace(path: Path):
                         root_wspace, wspace, lib.identifier
                     )
 
-                    if lib_status == LibraryStatus.NotCloned:
+                    if lib_status == FetchStatus.NotCloned:
                         library.clone(root_wspace, wspace, lib)
-                    elif lib_status == LibraryStatus.Dirty:
+                    elif lib_status == FetchStatus.Dirty:
                         log.warning(
                             f"{lib.identifier.identifier} has untracked modifications. This could break your project as it's inconsistent."
                         )
-                    elif lib_status == LibraryStatus.Modified:
+                    elif lib_status == FetchStatus.Modified:
                         log.warning(
                             f"{lib.identifier.identifier} isn't pointing to the target commit, meaning that is it may be modified by hand. This could break your project as it's inconsistent."
                         )
