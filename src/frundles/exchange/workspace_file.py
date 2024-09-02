@@ -87,8 +87,6 @@ def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
     # Parse the url and extract the library name
     name = _extract_name_from_repo_url(origin)
 
-    # Extract friendly name if any
-    friendly_name = data.get("friendly_name", None)
 
     # Parse refspecs
     refspec, locked_refspec = _parse_refspec(name, data)
@@ -97,10 +95,15 @@ def parse_library_definition(cwd: Path, data: Dict[str, any]) -> Library:
     lib_id = ItemIdentifier(
         kind=ArtifactKind.Library,
         name=name,
-        friendly_name=friendly_name,
+        friendly_name=None,
         refspec=refspec,
         locked_refspec=locked_refspec,
     )
+
+    # Extract friendly name if any
+    friendly_name = data.get("friendly_name", None) or lib_id.identifier
+
+    lib_id = lib_id.add_friendly_name(friendly_name)
 
     # Build the final Library object
     lib = Library(identifier=lib_id, origin=origin)

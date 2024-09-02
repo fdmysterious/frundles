@@ -157,6 +157,15 @@ class ItemIdentifier:
             friendly_name=self.friendly_name,
         )
 
+    def add_friendly_name(self, friendly_name: str):
+        return ItemIdentifier(
+            kind=self.kind,
+            name=self.name,
+            refspec=self.refspec,
+            locked_refspec=self.locked_refspec,
+            friendly_name=friendly_name,
+        )
+
     def is_locked(self):
         return self.locked_refspec is not None
 
