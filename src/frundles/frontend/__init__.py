@@ -25,7 +25,7 @@ def main():
     import coloredlogs
     import argparse
 
-    coloredlogs.install(level=logging.INFO)
+    coloredlogs.install(level=logging.ERROR)
 
     # Setup argument parser
     parser = argparse.ArgumentParser(
