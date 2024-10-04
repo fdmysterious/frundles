@@ -13,6 +13,10 @@ from . import locate
 from . import list as cmd_list
 
 
+from frundles.io.base import OutputHandlerLogging
+from frundles.io.tty import TTYOutputHandler
+
+
 CLI_COMMANDS = {
     "sync": sync,
     "locate": locate,
@@ -22,10 +26,7 @@ CLI_COMMANDS = {
 
 def main():
     # Imports and initial setup
-    import coloredlogs
     import argparse
-
-    coloredlogs.install(level=logging.ERROR)
 
     # Setup argument parser
     parser = argparse.ArgumentParser(
@@ -45,5 +46,14 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
     else:
+        # Setup output handler
+        output_handler = TTYOutputHandler()
+        output_handler.configure()
+
+        log_handler = OutputHandlerLogging(output_handler)
+
+        logging.getLogger().addHandler(log_handler)
+        logging.getLogger("frundles").info("Hello world!")
+
         cmd = CLI_COMMANDS[args.subcommand]
-        cmd.run(args)
+        cmd.run(output_handler, args)

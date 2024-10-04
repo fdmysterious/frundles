@@ -13,6 +13,7 @@ import logging
 import sys
 
 from ..backend import workspace
+from ..io.base import OutputHandler
 
 log = logging.getLogger("frontend.locate")
 
@@ -24,7 +25,7 @@ def setup_parser(parser: ArgumentParser):
     subparser.add_argument("friendly_name", help="Friendly name of the library")
 
 
-def run(args: Namespace):
+def run(output_handler: OutputHandler, args: Namespace):
     cwd = Path.cwd()
 
     # Find the closest workspace
@@ -40,4 +41,5 @@ def run(args: Namespace):
         log.error(f"Could not found library path with name '{friendly_name}'")
         sys.exit(1)
 
-    print(lib_path)
+    # print(lib_path)
+    output_handler.send_output(lib_path)

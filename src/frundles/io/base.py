@@ -30,15 +30,12 @@ class OutputHandler(ABC):
     def __init__(self):
         pass
 
-
     def configure(self):
         pass
-
 
     @abstractmethod
     def send_output(self, data: str):
         pass
-
 
     @abstractmethod
     def send_log(self, record: logging.LogRecord):
@@ -54,7 +51,6 @@ class OutputHandlerLogging(logging.Handler):
     def __init__(self, output_handler=None):
         super().__init__()
         self.output_handler = output_handler
-
 
     def emit(self, record):
         self.output_handler.send_log(record)

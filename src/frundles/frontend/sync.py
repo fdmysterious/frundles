@@ -11,6 +11,8 @@ import argparse
 from ..backend import workspace
 from pathlib import Path
 
+from ..io.base import OutputHandler
+
 log = logging.getLogger("frontend.sync")
 
 
@@ -18,7 +20,7 @@ def setup_parser(parser: argparse.ArgumentParser):
     subparser = parser.add_parser("sync", help="Synchronize dependencies")  # noqa: F841
 
 
-def run(args: argparse.Namespace):
+def run(output_handler: OutputHandler, args: argparse.Namespace):
     cwd = Path.cwd()
 
     # Find the root workspace

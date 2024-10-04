@@ -9,8 +9,6 @@ from .vivado import VivadoOutputHandler
 
 
 def get(name: str):
-    AVAILABLE_HANDLERS = {
-        "vivado": VivadoOutputHandler
-    }
+    AVAILABLE_HANDLERS = {"vivado": VivadoOutputHandler}
 
     return AVAILABLE_HANDLERS.get(name, None)

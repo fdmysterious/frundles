@@ -10,6 +10,8 @@ from argparse import ArgumentParser, Namespace
 from ..backend import workspace
 from pathlib import Path
 
+from ..io.base import OutputHandler
+
 
 def setup_parser(parser: ArgumentParser):
     subparser = parser.add_parser(  # noqa: F841
@@ -17,7 +19,7 @@ def setup_parser(parser: ArgumentParser):
     )
 
 
-def run(args: Namespace):
+def run(output_handler: OutputHandler, args: Namespace):
     cwd = Path.cwd()
 
     # Find the current workspace
@@ -35,7 +37,11 @@ def run(args: Namespace):
         (lib.identifier.identifier, lib.identifier.friendly_name) for lib in libraries
     ]
 
-    print("")
-    print("Available libraries:")
-    print("")
-    print(tabulate(rows, headers=headers, tablefmt="github"))
+    result = f"\nAvailable libraries:\n\n{tabulate(rows, headers=headers, tablefmt='github')}"
+
+    output_handler.send_output(result)
+
+    # print("")
+    # print("Available libraries:")
+    # print("")
+    # print(tabulate(rows, headers=headers, tablefmt="github"))
