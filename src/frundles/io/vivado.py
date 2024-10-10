@@ -59,8 +59,8 @@ class VivadoOutputHandler(OutputHandler):
         Ex: INFO:test_log:This is test message
         """
 
-        lvl = self.LOG_LEVEL_NAMES[record.level]
+        lvl = self.LOG_LEVELS_NAMES[record.levelno]
         name = self._encode_name(record.name)
-        msg = self._encode_text(record.message)
+        msg = self._encode_text(record.msg)
 
         print(f"{lvl}:{name}:{msg}")
