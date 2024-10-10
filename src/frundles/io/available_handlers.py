@@ -6,9 +6,17 @@
 """
 
 from .vivado import VivadoOutputHandler
+from .tty    import TTYOutputHandler
+
+AVAILABLE_HANDLERS = {
+    "tty": TTYOutputHandler,
+    "vivado": VivadoOutputHandler
+}
 
 
 def get(name: str):
-    AVAILABLE_HANDLERS = {"vivado": VivadoOutputHandler}
-
     return AVAILABLE_HANDLERS.get(name, None)
+
+def default():
+    return "tty"
+
