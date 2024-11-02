@@ -55,3 +55,10 @@ class LockFileSyntaxError(Exception):
 class DuplicateFriendlyName(Exception):
     def __init__(self, friendly_name: str):
         super().__init__(f"Duplicate friendly name found: {friendly_name}")
+
+
+class DuplicateLockfileIdentifier(Exception):
+    def __init__(self, identifier):
+        super().__init__(
+            f"Item identifier {identifier.identifier} already present in lock file"
+        )

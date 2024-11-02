@@ -84,9 +84,12 @@ def find_root_workspace(start_path: Path):
     return cur_path
 
 
-def load_workspace(path: Path):
-    """
-    Load workspace information.
+def load_workspace(path: Path, ignore_lockfile=False):
+    """Load workspace information.
+
+    Args:
+        path: path of workspace information to load
+        ignore_lockfile: ignore lockfile information if True
     """
 
     path = Path(path).resolve()
@@ -131,7 +134,7 @@ def load_workspace(path: Path):
         return lib
 
     locked_libs = None
-    if lockfile.is_file():
+    if lockfile.is_file() and not ignore_lockfile:
         log.info(f"Found lockfile for workspace {path} at {lockfile}")
         locked_libs = lock_file.from_file(lockfile)
 
@@ -152,6 +155,7 @@ def _fetch_artifacts(
     resolved_refspecs: Dict[ItemIdentifier, RefSpec] = None,
     synced_libraries: FrozenSet[ItemIdentifier] = frozenset(),
     fetch_stack: Tuple[ItemIdentifier] = tuple(),
+    allow_lockfile_replace: bool = False,
 ):
     resolved_refspecs = dict(
         resolved_refspecs or dict()
@@ -230,7 +234,11 @@ def _fetch_artifacts(
                         log.info(
                             f"Resolved commit to {oid}, saving to lock file {lockfile_path}"
                         )
-                        lock_file.add_to_lock_file(lockfile_path, lib.identifier)
+                        lock_file.add_to_lock_file(
+                            lockfile_path,
+                            lib.identifier,
+                            replace_existing=allow_lockfile_replace,
+                        )
 
                         new_resolved_refspecs[lib.identifier.unlock()] = (
                             lib.identifier.locked_refspec
@@ -301,15 +309,20 @@ def _fetch_artifacts(
     return frozenset(new_synced_libraries), new_resolved_refspecs
 
 
-def sync_workspace(path: Path):
-    """
-    Sync workspace. This means to fetch missing dependencies, and check status of current fetched libraries.
+def sync_workspace(path: Path, ignore_root_lockfile=False):
+    """Sync workspace. This means to fetch missing dependencies, and check status of current fetched libraries.
+
+    Args:
+        path: Path of workspace to synchronize
+        ignore_root_lockfile: Ignore the workspace's lockfile. This means bumping all branch and potentially tag references.
     """
 
     path = Path(path).resolve()
 
     # Load workspace information
-    root_wspace, libraries, externals, resolved_refspecs = load_workspace(path)
+    root_wspace, libraries, externals, resolved_refspecs = load_workspace(
+        path, ignore_lockfile=ignore_root_lockfile
+    )
     resolved_refspecs = resolved_refspecs or dict()
 
     log.info(
@@ -328,6 +341,7 @@ def sync_workspace(path: Path):
         lockfile_path=path / "frundles.lock",  # FIXME # Refactor in function
         libraries=libraries,
         resolved_refspecs=resolved_refspecs,
+        allow_lockfile_replace=ignore_root_lockfile,
     )
 
 

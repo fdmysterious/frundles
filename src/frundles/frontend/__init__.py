@@ -12,6 +12,8 @@ from . import sync
 from . import locate
 from . import list as cmd_list
 
+from . import bump_all
+
 # from . import bump
 
 
@@ -26,6 +28,7 @@ CLI_COMMANDS = {
     "sync": sync,
     "locate": locate,
     "list": cmd_list,
+    "bump-all": bump_all,
     # "bump": bump,
 }
 

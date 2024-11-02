@@ -9,13 +9,22 @@ import re
 from pathlib import Path
 from typing import Dict, FrozenSet
 
-from ..errors import LockFileSyntaxError
+from ..errors import LockFileSyntaxError, DuplicateLockfileIdentifier, UnlockedRefSpec
 from ..model import ItemIdentifier, RefSpec, RefSpecKind, ArtifactKind
 
 _SHA1_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 
-def from_file(path: Path) -> Dict[ItemIdentifier, ItemIdentifier]:
+def from_file(path: Path) -> Dict[ItemIdentifier, RefSpec]:
+    """Parses a lock file
+
+    Args:
+        path: Path to lockfile
+
+    Returns:
+        A dictionary matching the input item identifier (potentially unlocked) to its corresponding locked refspec
+    """
+
     libs = dict()
 
     with open(path, "r") as fhandle:
@@ -98,13 +107,41 @@ def to_file(path: Path, libs: FrozenSet[ItemIdentifier]):
             )
 
 
-def add_to_lock_file(path: Path, lib_id: ItemIdentifier):
+def add_to_lock_file(
+    path: Path, lib_id: ItemIdentifier, replace_existing: bool = False
+):
+    """Add a locked reference to lock file
+
+    Args:
+        path: Path to lock file
+        lib_id: Identifier of target library
+        replace_existing: Replace exisitng locked reference if it exists in file. Raise an error otherwise.
+    """
+
+    # Check if target lib_id is correctly locked
+    if not lib_id.is_locked():
+        raise UnlockedRefSpec(lib_id)
+
+    # Load existing lock file information if it exists
     try:
-        locked_libs = {k.lock(v) for k, v in from_file(path).items()}
-
+        libs = from_file(path)
     except FileNotFoundError:
-        locked_libs = set()
+        # Default: Prepare an empty file
+        libs = dict()
 
-    locked_libs.add(lib_id)
+    # Check if identifier already exist in file?
+    unlocked_id = lib_id.unlock()
 
+    if unlocked_id in libs:
+        if replace_existing:
+            # Replace identifier with its new version
+            libs[unlocked_id] = lib_id.locked_refspec
+        else:
+            # Identifier already exist in file and no replacement allowed
+            raise DuplicateLockfileIdentifier(unlocked_id)
+
+    # Lock references
+    locked_libs = {k.lock(v) for k, v in libs.items()}
+
+    # Save to file
     to_file(path, locked_libs)

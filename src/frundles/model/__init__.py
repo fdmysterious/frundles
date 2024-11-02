@@ -151,6 +151,7 @@ class ItemIdentifier:
             locked_refspec=locked_refspec,
         )
 
+    # TODO # Cannot unlock commit refspecs?
     def unlock(self):
         return ItemIdentifier(
             kind=self.kind,
