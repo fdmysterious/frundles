@@ -49,6 +49,9 @@ class RefSpec:
     def __hash__(self):
         return hash(f"{self.kind.value}:{self.value}")
 
+    def __str__(self):
+        return f"{self.kind.value}:{self.value}"
+
 
 ###########################################
 # Fetch status and artifact kind
@@ -126,7 +129,7 @@ class ItemIdentifier:
         """Returns an identifier string that shall be unique to a given library"""
 
         if self.locked_refspec is None:
-            raise UnlockedRefSpec(self.refspec)
+            raise UnlockedRefSpec(self)
 
         return f"{self.kind.value}:{self.name}:{self.locked_refspec.value}"
 
@@ -135,7 +138,7 @@ class ItemIdentifier:
         """Returns an identifier that shall be unique to a given library, to be used with folder names"""
 
         if self.locked_refspec is None:
-            raise UnlockedRefSpec(self.refspec)
+            raise UnlockedRefSpec(self)
 
         return f"{self.name}-{self.locked_refspec.value}"
 
@@ -153,6 +156,15 @@ class ItemIdentifier:
             kind=self.kind,
             name=self.name,
             refspec=self.refspec,
+            locked_refspec=None,
+            friendly_name=self.friendly_name,
+        )
+
+    def change_refspec(self, new_refspec: RefSpec):
+        return ItemIdentifier(
+            kind=self.kind,
+            name=self.name,
+            refspec=new_refspec,
             locked_refspec=None,
             friendly_name=self.friendly_name,
         )

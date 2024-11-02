@@ -12,16 +12,21 @@ from . import sync
 from . import locate
 from . import list as cmd_list
 
+# from . import bump
 
-from frundles.io.available_handlers import AVAILABLE_HANDLERS, default as default_handler
+
+from frundles.io.available_handlers import (
+    AVAILABLE_HANDLERS,
+    default as default_handler,
+)
 from frundles.io.base import OutputHandlerLogging
-from frundles.io.tty import TTYOutputHandler
 
 
 CLI_COMMANDS = {
     "sync": sync,
     "locate": locate,
     "list": cmd_list,
+    # "bump": bump,
 }
 
 
@@ -37,7 +42,12 @@ def main():
     )
 
     # Add argument for output handler
-    parser.add_argument("--output_mode", choices=AVAILABLE_HANDLERS.keys(), default=default_handler(), help="Set output mode for integration with other tools")
+    parser.add_argument(
+        "--output_mode",
+        choices=AVAILABLE_HANDLERS.keys(),
+        default=default_handler(),
+        help="Set output mode for integration with other tools",
+    )
 
     subcommand = parser.add_subparsers(dest="subcommand")
 

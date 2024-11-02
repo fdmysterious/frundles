@@ -11,7 +11,7 @@ import yaml
 import urllib.parse
 from pathlib import Path
 
-from typing import Dict
+from typing import Dict, List
 
 from ..model import (
     ArtifactKind,
@@ -24,6 +24,11 @@ from ..model import (
     External,
 )
 from ..errors import MultipleRefSpec, DuplicateFriendlyName
+
+
+###########################################
+# Load workspace functions
+###########################################
 
 
 def _extract_name_from_repo_url(x: str):
@@ -178,3 +183,118 @@ def from_file(path: Path):
             friendly_names.add(friendly_name)
 
     return workspace_info, libraries, externals
+
+
+###########################################
+# Save workspace functions
+###########################################
+
+
+def encode_workspace_info(wsdir: Path, wsinfo: WorkspaceInfo):
+    """Encode workspace info in a dictionary for YAML encoding.
+
+    Args:
+        wsdir: Path to current workspace
+        wsinfo: Workspace information to encode
+
+    Returns:
+        A dictionary containing encoded workspace information
+    """
+
+    s_catalog_dir = str(
+        wsinfo.catalog_dir.relative_to(wsdir)
+        if wsinfo.catalog_dir.is_relative_to(wsdir)
+        else wsinfo.catalog_dir
+    )
+    s_mode = str(wsinfo.mode)
+
+    return {
+        "catalog_dir": s_catalog_dir,
+        "mode": s_mode,
+    }
+
+
+def _encode_refspec(refspec: RefSpec):
+    key = str(refspec.kind)
+    value = str(refspec.value)
+
+    return {key: value}
+
+
+def encode_library_definition(lib: Library):
+    s_origin = str(lib.origin)
+    d_refspec = _encode_refspec(lib.identifier.refspec)
+    s_friendly_name = str(lib.identifier.friendly_name)
+
+    # Create a temp dict that contains the friendly name only if different from automatically generated one when loading
+    d_friendly_name = (
+        {"friendly_name": s_friendly_name}
+        if s_friendly_name != f"{lib.identifier.name}:{lib.identifier.refspec.value}"
+        else dict()
+    )
+
+    return {"origin": s_origin, **d_friendly_name, **d_refspec}
+
+
+def encode_external_definition(wsdir: Path, ext: External):
+    s_origin = ext.origin
+    s_dest_path = str(
+        ext.dest_path.relative_to(wsdir)
+        if ext.dest_path.is_relative_to(wsdir)
+        else ext.dest_path
+    )
+    d_refspec = _encode_refspec(ext.identifier.refspec)
+    s_friendly_name = str(ext.identifier.friendly_name)
+
+    # Create a temp dict that contains the friendly name only if different from automatically generated one when loading
+    d_friendly_name = (
+        {"friendly_name": s_friendly_name}
+        if s_friendly_name != f"{ext.identifier.name}:{ext.identifier.refspec.value}"
+        else dict()
+    )
+
+    return {
+        "origin": s_origin,
+        "dest_path": s_dest_path,
+        **d_friendly_name,
+        **d_refspec,
+    }
+
+
+def to_file(
+    path: Path,
+    workspace_info: WorkspaceInfo,
+    libraries: List[Library],
+    externals: List[External],
+):
+    """Save workspace properties to a target file
+
+    Args:
+        path: Target file path
+        workspace_info: Workspace info properties
+        libraries: List of libraries for workspace
+        externals: List of externals for workspace
+    """
+
+    path = Path(path)  # ensure path is of Path type
+
+    # Encode workspace info
+    d_wsinfo = encode_workspace_info(path, workspace_info)
+
+    # Encode list of libraries and externals
+    l_libs = [encode_library_definition(lib) for lib in libraries]
+    l_exts = [encode_external_definition(ext) for ext in externals]
+
+    # Generate final output dictionary
+    d_output_libs = {"libraries": l_libs} if l_libs else dict()
+    d_output_exts = {"externals": l_exts} if l_exts else dict()
+
+    d_output = {
+        "workspace": d_wsinfo,
+        **d_output_libs,
+        **d_output_exts,
+    }
+
+    # Save to yaml file
+    with open(path, "w") as fhandle:
+        yaml.dump(d_output, fhandle)

@@ -44,7 +44,7 @@ def _get_commit_sha1(lib: Library):
     ref_name = lib.identifier.refspec.value
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        #print(f"Fetch to {tmpdir}")
+        # print(f"Fetch to {tmpdir}")
 
         repo = Repo.init(tmpdir)
         origin = repo.create_remote("origin", url=repo_url)
@@ -130,9 +130,14 @@ def get_origin(repo_dir: Path):
             repo = Repo(repo_dir)
 
             if "origin" in repo.remotes:
-                url = repo.remotes.origin.url # TODO # Check if remotes[0] can be used to get URL from default remotes with a name different than 'origin'?
+                url = (
+                    repo.remotes.origin.url
+                )  # TODO # Check if remotes[0] can be used to get URL from default remotes with a name different than 'origin'?
+                return url
             else:
-                log.warning(f"Repo in '{repo_dir}' has no 'origin' remote URL, assuming local directory path")
+                log.warning(
+                    f"Repo in '{repo_dir}' has no 'origin' remote URL, assuming local directory path"
+                )
                 return str(repo_dir.resolve())
 
         except Exception as exc:
