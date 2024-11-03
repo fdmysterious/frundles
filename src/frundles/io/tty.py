@@ -7,6 +7,7 @@
 
 import coloredlogs
 import logging
+import os
 
 from .base import OutputHandler
 
@@ -23,7 +24,8 @@ class TTYOutputHandler(OutputHandler):
         pass
 
     def configure(self):
-        coloredlogs.install(level=logging.INFO)
+        debug_enabled = bool(os.getenv("FRUNDLES_DEBUG", 0))
+        coloredlogs.install(level=logging.DEBUG if debug_enabled else logging.INFO)
 
     def send_output(self, x: str):
         print(x)
