@@ -62,3 +62,10 @@ class DuplicateLockfileIdentifier(Exception):
         super().__init__(
             f"Item identifier {identifier.identifier} already present in lock file"
         )
+
+
+class InvalidOrigin(Exception):
+    def __init__(self, target_origin, got_origin):
+        super().__init__(
+            f"Unexpected origin URL. Expected {target_origin}, got {got_origin}"
+        )

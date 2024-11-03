@@ -10,7 +10,7 @@ import logging
 import traceback
 
 from functools import partial
-from typing import Dict, List, FrozenSet, Tuple
+from typing import Dict, List, FrozenSet, Tuple, Optional
 from pathlib import Path
 from ..errors import WorkspaceNotFound
 
@@ -156,6 +156,8 @@ def _fetch_artifacts(
     synced_libraries: FrozenSet[ItemIdentifier] = frozenset(),
     fetch_stack: Tuple[ItemIdentifier] = tuple(),
     allow_lockfile_replace: bool = False,
+    bump_all: bool = False,
+    bump_list: Optional[List[ItemIdentifier]] = None,
 ):
     resolved_refspecs = dict(
         resolved_refspecs or dict()
@@ -163,6 +165,8 @@ def _fetch_artifacts(
 
     new_synced_libraries = set()
     new_resolved_refspecs = dict()
+
+    bump_list = bump_list or list()
 
     for lib in libraries:
         # If a circular dependency is detected, error
@@ -187,7 +191,30 @@ def _fetch_artifacts(
             log.info(f"Attempt to sync library {lib.identifier.identifier}")
 
             try:
+                ###########################################################
+                # Check most recent revision if bump requested for lib
+                ###########################################################
+
+                lib_old_identifier = (
+                    None  # Will be populated if reference will be bumped
+                )
+
+                # If bump mode activated, get most recent revision for library
+                if bump_all or lib.identifier.unlock() in bump_list:
+                    log.info(
+                        f"Bump requested for {lib.identifier.identifier}, check most recent revision"
+                    )
+                    oid = artifact._get_commit_sha1(lib)
+                    lib_old_identifier = lib
+
+                    lib = lib.lock(
+                        RefSpec(kind=RefSpecKind.Commit, value=oid)
+                    )  # Lock to new identifier
+
+                ###########################################################
                 # Ensure library refspec is locked to a specific commit
+                ###########################################################
+
                 if not lib.identifier.is_locked():
                     if (lib.identifier in resolved_refspecs) or (
                         lib.identifier in new_resolved_refspecs
@@ -218,22 +245,23 @@ def _fetch_artifacts(
                             or (lib.identifier in new_synced_libraries)
                         ):
                             log.warning(
-                                f"Library {lib.identifier} is already synced, ignoring"
+                                f"Library {lib.identifier.identifier} is already synced, ignoring"
                             )
                             continue  # Already fetched, skip to next lib
 
                     # Commit must be resolved
+                    # NOTE # If lib not previously in lock file but bump requested, this should not be called.
                     else:
                         log.warning(
                             f"{lib.identifier.identifier} is not locked, resolve commit"
                         )
                         oid = artifact._get_commit_sha1(lib)
-
                         lib = lib.lock(RefSpec(kind=RefSpecKind.Commit, value=oid))
 
                         log.info(
                             f"Resolved commit to {oid}, saving to lock file {lockfile_path}"
                         )
+
                         lock_file.add_to_lock_file(
                             lockfile_path,
                             lib.identifier,
@@ -244,7 +272,10 @@ def _fetch_artifacts(
                             lib.identifier.locked_refspec
                         )
 
+                ###########################################################
                 # Check status for library
+                ###########################################################
+
                 lib_status = artifact.check_status(root_wspace, wspace, lib.identifier)
 
                 if lib_status == FetchStatus.NotCloned:
@@ -262,12 +293,56 @@ def _fetch_artifacts(
                     log.warning(
                         f"{lib.identifier.identifier} has untracked modifications. This could break your project as it's inconsistent."
                     )
+
                 elif lib_status == FetchStatus.Modified:
-                    log.warning(
-                        f"{lib.identifier.identifier} isn't pointing to the target commit, meaning that is it may be modified by hand. This could break your project as it's inconsistent."
+                    # If target folder is not at correct commit, check if we are not bumping the reference. This can occur for instance when
+                    # bumping reference in recurse mode. So check using old refspec, and if the folder is at this reference, this means we need
+                    # to update to the new one.
+
+                    if (
+                        lib_old_identifier
+                        and artifact.check_status(
+                            root_wspace, wspace, lib_old_identifier.identifier
+                        )
+                        == FetchStatus.Ok
+                    ):
+                        target_dir = catalog.get_lib_path(
+                            root_wspace, wspace, lib.identifier
+                        )
+
+                        artifact.update(
+                            target_dir, lib.origin, lib.identifier.locked_refspec
+                        )
+
+                    else:
+                        log.warning(
+                            f"{lib.identifier.identifier} isn't pointing to the target commit, meaning that is it may be modified by hand. This could break your project as it's inconsistent."
+                        )
+
+                # TODO # Ask to remove old folder if bump in aggregate mode?
+
+                ###########################################################
+                # If bump was requested, save new reference to lock file
+                ###########################################################
+                if lib_old_identifier is not None:
+                    log.info(
+                        f"Save new refspec for {lib.identifier.identifier} to lockfile {lockfile_path}"
                     )
 
+                    lock_file.add_to_lock_file(
+                        lockfile_path,
+                        lib.identifier,
+                        replace_existing=allow_lockfile_replace,
+                    )
+
+                    new_resolved_refspecs[lib.identifier.unlock()] = (
+                        lib.identifier.locked_refspec
+                    )
+
+                ###########################################################
                 # Process library if it's a workspace
+                ###########################################################
+
                 lib_folder = catalog.get_lib_path(root_wspace, wspace, lib.identifier)
                 if is_workspace(lib_folder):
                     log.info(
@@ -302,27 +377,33 @@ def _fetch_artifacts(
 
             except Exception as exc:
                 log.error(
-                    f"An error occured while retrieving library {lib.identifier}: {str(exc)}"
+                    f"An error occured while retrieving library {lib.identifier.identifier}: {str(exc)}"
                 )
                 log.debug(traceback.format_exc())
 
     return frozenset(new_synced_libraries), new_resolved_refspecs
 
 
-def sync_workspace(path: Path, ignore_root_lockfile=False):
+def sync_workspace(
+    path: Path, bump_all: bool = False, bump_list: Optional[List[ItemIdentifier]] = None
+):
     """Sync workspace. This means to fetch missing dependencies, and check status of current fetched libraries.
 
     Args:
         path: Path of workspace to synchronize
-        ignore_root_lockfile: Ignore the workspace's lockfile. This means bumping all branch and potentially tag references.
+        bump_all: Bump all workspace libraries
+        bump_list: Bump given item identifiers only
     """
 
     path = Path(path).resolve()
 
+    bump_list = bump_list or list()
+    allow_lockfile_replace = bump_all or (
+        len(bump_list) > 0
+    )  # Enable root lockfile replace if bump mode activated
+
     # Load workspace information
-    root_wspace, libraries, externals, resolved_refspecs = load_workspace(
-        path, ignore_lockfile=ignore_root_lockfile
-    )
+    root_wspace, libraries, externals, resolved_refspecs = load_workspace(path)
     resolved_refspecs = resolved_refspecs or dict()
 
     log.info(
@@ -341,7 +422,9 @@ def sync_workspace(path: Path, ignore_root_lockfile=False):
         lockfile_path=path / "frundles.lock",  # FIXME # Refactor in function
         libraries=libraries,
         resolved_refspecs=resolved_refspecs,
-        allow_lockfile_replace=ignore_root_lockfile,
+        allow_lockfile_replace=allow_lockfile_replace,
+        bump_all=bump_all,
+        bump_list=bump_list,
     )
 
 

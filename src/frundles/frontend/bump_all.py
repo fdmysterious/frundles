@@ -29,4 +29,4 @@ def run(output_handler: OutputHandler, args: Namespace):
     log.info("Bump all dependencies for workspace located in {root_ws_path}")
 
     # Bumping all libraries is a synchronization ignoring the root lock file
-    workspace.sync_workspace(root_ws_path, ignore_root_lockfile=True)
+    workspace.sync_workspace(root_ws_path, bump_all=True)

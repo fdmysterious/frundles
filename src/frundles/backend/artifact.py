@@ -15,6 +15,8 @@ from pathlib import Path
 from ..model import ItemIdentifier, FetchStatus, Library, WorkspaceInfo, RefSpec
 from git import Repo, InvalidGitRepositoryError
 
+from ..errors import InvalidOrigin
+
 from . import catalog
 
 
@@ -99,31 +101,6 @@ def check_status(
 ###########################################
 
 
-def clone(target_dir: Path, origin: str, target_refspec: RefSpec):
-    target_dir = Path(target_dir)
-    target_dir.mkdir(exist_ok=False, parents=True)
-
-    repo = Repo.init(target_dir)
-    origin = repo.create_remote("origin", url=origin)
-
-    origin.fetch()
-
-    repo.git.checkout(target_refspec.value)
-
-
-# def clone(root_wspace: WorkspaceInfo, cur_wspace: WorkspaceInfo, lib: Library):
-#    target_dir = catalog.get_lib_path(root_wspace, cur_wspace, lib.identifier)
-#
-#    log.info(f"Clone library {lib.identifier.identifier} to {target_dir}")
-#
-#    repo = Repo.init(target_dir)
-#    origin = repo.create_remote("origin", url=lib.origin)
-#
-#    origin.fetch()
-#
-#    repo.git.checkout(lib.identifier.locked_refspec.value)
-
-
 def get_origin(repo_dir: Path):
     if (repo_dir / ".git").is_dir():
         try:
@@ -151,3 +128,33 @@ def get_origin(repo_dir: Path):
 def has_local_origin(origin: str):
     url = urllib.parse.urlsplit(origin)
     return url.scheme in {"", "file"}
+
+
+def clone(target_dir: Path, origin: str, target_refspec: RefSpec):
+    target_dir = Path(target_dir)
+    target_dir.mkdir(exist_ok=False, parents=True)
+
+    repo = Repo.init(target_dir)
+    origin = repo.create_remote("origin", url=origin)
+
+    origin.fetch()
+
+    repo.git.checkout(target_refspec.value)
+
+
+def update(target_dir: Path, origin: str, target_refspec: RefSpec):
+    log.info(f"Update repo at {target_dir} to reference {target_refspec}")
+
+    # Check valid origin
+    existing_origin = get_origin(target_dir)
+
+    if str(existing_origin) != str(origin):
+        raise InvalidOrigin(target_origin=origin, got_origin=existing_origin)
+
+    # Open repo, fetch, checkout target reference
+    repo = Repo(target_dir)
+    origin = repo.remotes.origin
+
+    origin.fetch()
+
+    repo.git.checkout(target_refspec.value)
