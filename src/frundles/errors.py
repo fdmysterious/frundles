@@ -69,3 +69,17 @@ class InvalidOrigin(Exception):
         super().__init__(
             f"Unexpected origin URL. Expected {target_origin}, got {got_origin}"
         )
+
+
+class LibraryNotFound(Exception):
+    def __init__(self, wspace_dir: Path, friendly_name: str):
+        super().__init__(
+            f"Library '{friendly_name}' not found in workspace located at {wspace_dir}."
+        )
+
+
+class CannotBumpFixedCommit(Exception):
+    def __init__(self, wspace_dir: Path, lib):
+        super().__init__(
+            f"Library '{lib.identifier.identifier}' in workspace at {wspace_dir} cannot be bumped, as it is commit fixed"
+        )

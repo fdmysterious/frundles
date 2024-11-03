@@ -12,7 +12,7 @@ import traceback
 from functools import partial
 from typing import Dict, List, FrozenSet, Tuple, Optional
 from pathlib import Path
-from ..errors import WorkspaceNotFound
+from ..errors import WorkspaceNotFound, LibraryNotFound, CannotBumpFixedCommit
 
 from ..exchange import workspace_file, lock_file
 from ..model import (
@@ -425,6 +425,47 @@ def sync_workspace(
         allow_lockfile_replace=allow_lockfile_replace,
         bump_all=bump_all,
         bump_list=bump_list,
+    )
+
+
+def bump_workspace_library(path: Path, friendly_name: str):
+    """Bump a specific target library
+
+    Args:
+        friendly_name: friendly name or identifier of library to bump
+    """
+
+    # Load workspace information
+    wsinfo, libraries, externals, resolved_refspecs = load_workspace(path)
+
+    # Identify library from config
+    try:
+        lib = next(
+            filter(
+                lambda x: (x.identifier.friendly_name == friendly_name)
+                or (x.identifier.identifier == friendly_name),
+                libraries,
+            )
+        )
+
+    except StopIteration:
+        raise LibraryNotFound(wspace_dir=path, friendly_name=friendly_name)
+
+    # -> Command doesn't make sense for fixed commit
+    if lib.identifier.refspec.kind == RefSpecKind.Commit:
+        raise CannotBumpFixedCommit(wspace_dir=path, lib=lib)
+
+    # Ok, let's do the proper bump stuff
+    _fetch_artifacts(
+        root_wspace=wsinfo,
+        wspace=wsinfo,
+        fetch_mode=wsinfo.mode,
+        lockfile_path=path / "frundles.lock",  # FIXME # Refactor in function
+        libraries=[lib],  # Only update bumping ref
+        resolved_refspecs=resolved_refspecs,
+        allow_lockfile_replace=True,
+        bump_all=False,
+        bump_list=[lib.identifier.unlock()],  # Bump library
     )
 
 

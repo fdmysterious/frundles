@@ -11,10 +11,8 @@ import sys
 from . import sync
 from . import locate
 from . import list as cmd_list
-
+from . import bump
 from . import bump_all
-
-# from . import bump
 
 
 from frundles.io.available_handlers import (
@@ -28,8 +26,8 @@ CLI_COMMANDS = {
     "sync": sync,
     "locate": locate,
     "list": cmd_list,
+    "bump": bump,
     "bump-all": bump_all,
-    # "bump": bump,
 }
 
 
