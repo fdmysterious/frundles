@@ -1,0 +1,3 @@
+( ) Sync command: add a `--force` switch that forces the update
+( ) Sync command: Maybe have an interactive confirmation if a dependency is dirty or modified?
+( ) Use versioningit for package versioning
