@@ -41,14 +41,12 @@ dependencies = [
 ]
 
 
-# TODO #
-#[project.urls]
-#Documentation = "https://XXXX"
-#Issues        = "https://XXXX"
-#Source        = "https://XXXX"
+[project.urls]
+Documentation = "https://github.com/fdmysterious/frundles"
+Issues        = "https://github.com/fdmysterious/frundles/issues"
+Source        = "https://github.com/fdmysterious/frundles"
 
 [tool.hatch.version]
-#path = "src/frundles/__about__.py"
 source="versioningit"
 
 
