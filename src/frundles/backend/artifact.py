@@ -12,7 +12,14 @@ import urllib.parse
 
 from pathlib import Path
 
-from ..model import ItemIdentifier, FetchStatus, Library, WorkspaceInfo, RefSpec, RefSpecKind
+from ..model import (
+    ItemIdentifier,
+    FetchStatus,
+    Library,
+    WorkspaceInfo,
+    RefSpec,
+    RefSpecKind,
+)
 from git import Repo, InvalidGitRepositoryError
 
 from ..errors import InvalidOrigin
@@ -54,7 +61,9 @@ def _get_commit_sha1(lib: Library):
 
         origin.fetch()
 
-        refspec_value = f"origin/{ref_name}" if ref_kind == RefSpecKind.Branch else ref_name
+        refspec_value = (
+            f"origin/{ref_name}" if ref_kind == RefSpecKind.Branch else ref_name
+        )
         commit_sha1 = repo.git.rev_parse(refspec_value)
 
         return commit_sha1
