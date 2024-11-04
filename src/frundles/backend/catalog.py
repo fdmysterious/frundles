@@ -30,7 +30,11 @@ def get_lib_path(
     if root_wspace_info.mode == WorkspaceMode.Aggregate:
         return root_wspace_info.catalog_dir / lib_id.locked_identifier_path
     else:
-        return cur_wspace_info.catalog_dir / lib_id.identifier_path
+        # In recurse mode, use friendly name if available
+        if lib_id.friendly_name:
+            return cur_wspace_info.catalog_dir / lib_id.friendly_name
+        else:
+            return cur_wspace_info.catalog_dir / lib_id.identifier_path
 
 
 def ensure_catalog_dir(wspace: WorkspaceInfo):
