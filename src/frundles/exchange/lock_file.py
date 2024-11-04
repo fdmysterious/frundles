@@ -132,13 +132,12 @@ def add_to_lock_file(
     # Check if identifier already exist in file?
     unlocked_id = lib_id.unlock()
 
-    if unlocked_id in libs:
-        if replace_existing:
-            # Replace identifier with its new version
-            libs[unlocked_id] = lib_id.locked_refspec
-        else:
-            # Identifier already exist in file and no replacement allowed
-            raise DuplicateLockfileIdentifier(unlocked_id)
+    if ((unlocked_id in libs) and replace_existing) or (unlocked_id not in libs):
+        # Replace identifier with its new version
+        libs[unlocked_id] = lib_id.locked_refspec
+    else:
+        # Identifier already exist in file and no replacement allowed
+        raise DuplicateLockfileIdentifier(unlocked_id)
 
     # Lock references
     locked_libs = {k.lock(v) for k, v in libs.items()}
