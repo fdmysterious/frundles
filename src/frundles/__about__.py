@@ -4,4 +4,3 @@
 
 __author__ = "Florian Dupeyron"
 __email__ = "florian.dupeyron@mugcat.fr"
-__version__ = "0.1.0"
