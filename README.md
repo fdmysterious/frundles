@@ -1,3 +1,5 @@
+![Frundles logo](./docs/assets/img/logo-frundles-text.svg)
+
 # Frundles
 
 [![PyPI - Version](https://img.shields.io/pypi/v/frundles.svg)](https://pypi.org/project/frundles)
@@ -7,8 +9,6 @@
 - August 2024
 
 Frundles is a simple tool to manage git repos for FPGA/HDL related projects.
-
-![Frundles logo](./docs/assets/img/logo-frundles.svg)
 
 ## Usage
 
